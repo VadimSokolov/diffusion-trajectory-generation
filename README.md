@@ -47,12 +47,21 @@ See subfolder READMEs for detailed instructions:
 
 ## Model Weights
 
-Pretrained model weights are available via Dropbox (too large for GitHub):
+Pretrained model weights are available via Dropbox:
 
-- **Diffusion v1.5** (167MB): [Dropbox Link - TBD by authors]
-- **CSDI v1.3** (21MB): [Dropbox Link - TBD by authors]
+**Diffusion v1.5** (167MB):
+```bash
+curl -L -o diffusion/v1.5/model/diffusion_final.pt \
+  "https://www.dropbox.com/scl/fi/cug0sm4t7ck347obt8x5r/diffusion_final.pt?rlkey=b6bo8otagxmlsybyabis2g7sd&dl=1"
+```
 
-Place downloaded weights in respective `diffusion/v1.5/model/` and `csdi/v1.3/model/` directories.
+**CSDI v1.3** (21MB):
+```bash
+curl -L -o csdi/v1.3/model/csdi_best.pt \
+  "https://www.dropbox.com/scl/fi/igeuh5j6i2dhb4dc90kek/csdi_best.pt?rlkey=878ys1xw4u3mvb4nxbqmyjmwe&dl=1"
+```
+
+Or download manually from links above and place in respective model directories.
 
 ## Citation
 

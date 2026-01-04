@@ -1,0 +1,21 @@
+Category,Metric,Value,Method
+Kinematic Fidelity,safd_wasserstein,0.00014491747001181557,CSDI
+Kinematic Fidelity,vsp_kl_divergence,0.003464376897784974,CSDI
+Kinematic Fidelity,vsp_wasserstein,0.24780631440155598,CSDI
+Kinematic Fidelity,ldlj_wasserstein,0.7596440483861217,CSDI
+Kinematic Fidelity,jerk_max_mean_synth,0.741259281678009,CSDI
+Statistical Fidelity,speed_wasserstein,0.29570576249362013,CSDI
+Statistical Fidelity,accel_wasserstein,0.02606985352469689,CSDI
+Statistical Fidelity,mmd,0.010066919138277446,CSDI
+Statistical Fidelity,speed_ks_statistic,0.019300942453153502,CSDI
+Statistical Fidelity,accel_ks_statistic,0.03315750539929674,CSDI
+Temporal Fidelity,tstr_mae,0.38798618747233643,CSDI
+Temporal Fidelity,tstr_ratio,0.9007693962851926,CSDI
+Boundary Conditions,boundary_any_violation_rate,0.0,CSDI
+Boundary Conditions,boundary_start_speed_max,0.0,CSDI
+Boundary Conditions,boundary_end_speed_max,0.0,CSDI
+Physical Plausibility,phys_speed_violation_rate,0.0,CSDI
+Physical Plausibility,phys_accel_violation_rate,0.006,CSDI
+Physical Plausibility,phys_negative_speed_rate,0.0,CSDI
+Utility,discriminative_score,0.4913083257090577,CSDI
+Utility,discriminative_auc,0.9996889360197949,CSDI

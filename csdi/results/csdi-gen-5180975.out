@@ -1,0 +1,30 @@
+==============================================
+CSDI Trajectory Generator - Generation Only
+==============================================
+Job ID: 5180975
+Node: gpu004
+Started: Thu Jan  1 19:59:33 EST 2026
+
+Python: /opt/sw/spack/apps/linux-rhel8-x86_64_v2/gcc-10.3.0/miniconda3-22.11.1-gy/bin/python
+CUDA available: True
+Data path: /home/vsokolov/projects/svtrip/data/Microtrips
+
+Starting generation...
+============================================================
+CSDI Trajectory Generator - Generation
+============================================================
+Loading real data for condition sampling from: /home/vsokolov/projects/svtrip/data/Microtrips
+Search pattern: /home/vsokolov/projects/svtrip/data/Microtrips/**/results_trip_*.csv
+Found 6367 files
+Loaded 1970 real conditions for sampling
+  Weighted sampling (power=1.7): original mean=17.1 → sampled mean=18.4 m/s
+Generating 1000 trajectories...
+  Diffusion steps: 200
+  Smoothing kernel: 7
+  Boundary ramp: 3 (conditional)
+  Condition stats:
+    Avg speed range: 8.6 - 31.6 m/s
+    Duration range: 50 - 512 s
+    Vehicle dynamics: 0.06 - 0.94 (0=heavy truck, 1=sports car)
+  Starting reverse diffusion (200 steps)...
+    Step 50/200 complete

@@ -1,0 +1,133 @@
+==============================================
+CSDI Trajectory Generator
+==============================================
+Job ID: 5178596
+Node: gpu004
+Started: Thu Jan  1 01:37:56 EST 2026
+
+Python: /opt/sw/spack/apps/linux-rhel8-x86_64_v2/gcc-10.3.0/miniconda3-22.11.1-gy/bin/python
+PyTorch: 2.9.1+cu128
+CUDA available: True
+
+Starting training...
+============================================================
+CSDI Trajectory Generator - Training
+============================================================
+Device: cuda
+Epochs: 100
+Diffusion steps: 100
+Loading 6367 trajectory files...
+Loaded 5991 valid trajectories
+Model parameters: 2,865,921
+Epoch 1: Loss = 0.3470, LR = 2.00e-04
+Epoch 2: Loss = 0.2992, LR = 2.00e-04
+Epoch 3: Loss = 0.2837, LR = 2.00e-04
+Epoch 4: Loss = 0.2790, LR = 1.99e-04
+Epoch 5: Loss = 0.2726, LR = 1.99e-04
+Epoch 6: Loss = 0.2125, LR = 1.98e-04
+Epoch 7: Loss = 0.1822, LR = 1.98e-04
+Epoch 8: Loss = 0.1615, LR = 1.97e-04
+Epoch 9: Loss = 0.1556, LR = 1.96e-04
+Epoch 10: Loss = 0.1504, LR = 1.95e-04
+Epoch 11: Loss = 0.1450, LR = 1.94e-04
+Epoch 12: Loss = 0.1347, LR = 1.93e-04
+Epoch 13: Loss = 0.1356, LR = 1.92e-04
+Epoch 14: Loss = 0.1304, LR = 1.90e-04
+Epoch 15: Loss = 0.1259, LR = 1.89e-04
+Epoch 16: Loss = 0.1189, LR = 1.88e-04
+Epoch 17: Loss = 0.1166, LR = 1.86e-04
+Epoch 18: Loss = 0.1222, LR = 1.84e-04
+Epoch 19: Loss = 0.1173, LR = 1.83e-04
+Epoch 20: Loss = 0.1179, LR = 1.81e-04
+Epoch 21: Loss = 0.1119, LR = 1.79e-04
+Epoch 22: Loss = 0.1148, LR = 1.77e-04
+Epoch 23: Loss = 0.1187, LR = 1.75e-04
+Epoch 24: Loss = 0.1049, LR = 1.73e-04
+Epoch 25: Loss = 0.1073, LR = 1.71e-04
+Epoch 26: Loss = 0.1091, LR = 1.68e-04
+Epoch 27: Loss = 0.1009, LR = 1.66e-04
+Epoch 28: Loss = 0.1060, LR = 1.64e-04
+Epoch 29: Loss = 0.1049, LR = 1.61e-04
+Epoch 30: Loss = 0.1053, LR = 1.59e-04
+Epoch 31: Loss = 0.1023, LR = 1.56e-04
+Epoch 32: Loss = 0.1015, LR = 1.54e-04
+Epoch 33: Loss = 0.1019, LR = 1.51e-04
+Epoch 34: Loss = 0.1003, LR = 1.48e-04
+Epoch 35: Loss = 0.1034, LR = 1.45e-04
+Epoch 36: Loss = 0.0981, LR = 1.43e-04
+Epoch 37: Loss = 0.0952, LR = 1.40e-04
+Epoch 38: Loss = 0.0980, LR = 1.37e-04
+Epoch 39: Loss = 0.0978, LR = 1.34e-04
+Epoch 40: Loss = 0.0950, LR = 1.31e-04
+Epoch 41: Loss = 0.0995, LR = 1.28e-04
+Epoch 42: Loss = 0.0979, LR = 1.25e-04
+Epoch 43: Loss = 0.0929, LR = 1.22e-04
+Epoch 44: Loss = 0.0951, LR = 1.19e-04
+Epoch 45: Loss = 0.0987, LR = 1.16e-04
+Epoch 46: Loss = 0.0934, LR = 1.13e-04
+Epoch 47: Loss = 0.0940, LR = 1.09e-04
+Epoch 48: Loss = 0.0950, LR = 1.06e-04
+Epoch 49: Loss = 0.0958, LR = 1.03e-04
+Epoch 50: Loss = 0.0893, LR = 1.00e-04
+Epoch 51: Loss = 0.0905, LR = 9.69e-05
+Epoch 52: Loss = 0.0947, LR = 9.37e-05
+Epoch 53: Loss = 0.0889, LR = 9.06e-05
+Epoch 54: Loss = 0.0881, LR = 8.75e-05
+Epoch 55: Loss = 0.0867, LR = 8.44e-05
+Epoch 56: Loss = 0.0878, LR = 8.13e-05
+Epoch 57: Loss = 0.0893, LR = 7.82e-05
+Epoch 58: Loss = 0.0871, LR = 7.51e-05
+Epoch 59: Loss = 0.0820, LR = 7.21e-05
+Epoch 60: Loss = 0.0882, LR = 6.91e-05
+Epoch 61: Loss = 0.0837, LR = 6.61e-05
+Epoch 62: Loss = 0.0847, LR = 6.32e-05
+Epoch 63: Loss = 0.0870, LR = 6.03e-05
+Epoch 64: Loss = 0.0855, LR = 5.74e-05
+Epoch 65: Loss = 0.0826, LR = 5.46e-05
+Epoch 66: Loss = 0.0872, LR = 5.18e-05
+Epoch 67: Loss = 0.0839, LR = 4.91e-05
+Epoch 68: Loss = 0.0884, LR = 4.64e-05
+Epoch 69: Loss = 0.0849, LR = 4.38e-05
+Epoch 70: Loss = 0.0835, LR = 4.12e-05
+Epoch 71: Loss = 0.0818, LR = 3.87e-05
+Epoch 72: Loss = 0.0806, LR = 3.63e-05
+Epoch 73: Loss = 0.0827, LR = 3.39e-05
+Epoch 74: Loss = 0.0851, LR = 3.15e-05
+Epoch 75: Loss = 0.0847, LR = 2.93e-05
+Epoch 76: Loss = 0.0820, LR = 2.71e-05
+Epoch 77: Loss = 0.0792, LR = 2.50e-05
+Epoch 78: Loss = 0.0821, LR = 2.29e-05
+Epoch 79: Loss = 0.0813, LR = 2.10e-05
+Epoch 80: Loss = 0.0789, LR = 1.91e-05
+Epoch 81: Loss = 0.0823, LR = 1.73e-05
+Epoch 82: Loss = 0.0797, LR = 1.56e-05
+Epoch 83: Loss = 0.0801, LR = 1.39e-05
+Epoch 84: Loss = 0.0776, LR = 1.24e-05
+Epoch 85: Loss = 0.0776, LR = 1.09e-05
+Epoch 86: Loss = 0.0792, LR = 9.52e-06
+Epoch 87: Loss = 0.0797, LR = 8.22e-06
+Epoch 88: Loss = 0.0797, LR = 7.02e-06
+Epoch 89: Loss = 0.0788, LR = 5.91e-06
+Epoch 90: Loss = 0.0804, LR = 4.89e-06
+Epoch 91: Loss = 0.0776, LR = 3.97e-06
+Epoch 92: Loss = 0.0764, LR = 3.14e-06
+Epoch 93: Loss = 0.0788, LR = 2.41e-06
+Epoch 94: Loss = 0.0810, LR = 1.77e-06
+Epoch 95: Loss = 0.0783, LR = 1.23e-06
+Epoch 96: Loss = 0.0765, LR = 7.89e-07
+Epoch 97: Loss = 0.0779, LR = 4.44e-07
+Epoch 98: Loss = 0.0789, LR = 1.97e-07
+Epoch 99: Loss = 0.0790, LR = 4.93e-08
+Epoch 100: Loss = 0.0796, LR = 0.00e+00
+Training complete. Best loss: 0.0764
+
+Starting generation...
+============================================================
+CSDI Trajectory Generator - Generation
+============================================================
+Generating 1000 trajectories...
+Saved samples plot: csdi_samples_20260101_015555.png
+
+==============================================
+Completed: Thu Jan  1 01:55:57 EST 2026
+==============================================

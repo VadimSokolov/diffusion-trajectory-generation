@@ -1,0 +1,34 @@
+Lmod Warning: MODULEPATH is undefined.
+
+
+
+Lmod has detected the following error: The following module(s) are unknown:
+"gnu10/10.3.0-ya"
+
+Please check the spelling or version number. Also try "module spider ..."
+It is also possible your cache file is out-of-date; it may help to try:
+  $ module --ignore-cache load "gnu10/10.3.0-ya"
+
+Also make sure that all modulefiles written in TCL start with the string
+#%Module
+
+
+
+Lmod Warning: MODULEPATH is undefined.
+
+
+
+Lmod has detected the following error: The following module(s) are unknown:
+"miniconda3/22.11.1-gy"
+
+Please check the spelling or version number. Also try "module spider ..."
+It is also possible your cache file is out-of-date; it may help to try:
+  $ module --ignore-cache load "miniconda3/22.11.1-gy"
+
+Also make sure that all modulefiles written in TCL start with the string
+#%Module
+
+
+
+/var/spool/slurmd/job5180974/slurm_script: command substitution: line 49: syntax error near unexpected token `os.path.exists'
+/var/spool/slurmd/job5180974/slurm_script: command substitution: line 49: `python -c \"import os; print(os.path.exists('${DATA_DIR}'))\")"'

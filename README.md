@@ -1,161 +1,56 @@
-# Reproduction Package for "Diffusion Models for Conditional Vehicle Speed Trajectory Generation"
+# Diffusion Models for Vehicle Speed Trajectory Generation
 
-This repository contains scripts, data, and documentation needed to reproduce the figures and tables in the IEEE ITS journal paper.
+This repository contains the reproducibility package for the IEEE ITS paper:
 
-## Contents
+**"Diffusion Models for Conditional Vehicle Speed Trajectory Generation: A Comparative Study"**
 
-- `generate_figures.py` - Main script to generate all figures
-- `scripts/` - Training and evaluation scripts
-  - `diffusion_trajectory.py` - Diffusion model training
-  - `csdi_trajectory.py` - CSDI model training
-  - `evaluate_distribution.py` - Diffusion evaluation metrics
-  - `evaluate_csdi.py` - CSDI evaluation metrics
-  - `markov_bridge_generator.py` - Markov chain baseline
-- `artifacts/` - Preprocessed data files
-  - `cluster_to_trip_ids.json` - Cluster assignments for 6,367 microtrips
-  - `trip_clusters.csv` - Trip cluster assignments (692KB)
-  - `trip_features.csv` - Extracted features for clustering (679KB)
-  - `stats_df.csv` - Comprehensive trip statistics (689KB)
-  - `microtrips-summary.md` - Dataset statistics
-  - `clustering-results.md` - Cluster analysis
-  - `data-collection.md` - CMAP 2007 survey background
-- `fig/` - Output directory for generated figures
-- `README.md` - This file
+## Repository Structure
 
-## Requirements
+- **`diffusion/`** - U-Net diffusion model (v1.5) implementation
+- **`csdi/`** - CSDI transformer diffusion model (v1.3) implementation  
+- **`generate_figures.py`** - Script to generate all paper figures
+- **`artifacts/`** - Preprocessed CMAP 2007 travel survey data
+- **`LICENSE`** - MIT License
 
-```bash
-pip install -r requirements.txt
-```
-
-**Python Version**: 3.8+
+Each model subfolder contains complete training code, evaluation scripts, and documentation.
 
 ## Quick Start
 
-### 1. Generate All Figures
+### 1. Generate Paper Figures
 
 ```bash
 python3 generate_figures.py --artifacts-path artifacts --output-dir fig
 ```
 
-This creates all figures referenced in the paper (PDF + PNG formats).
+This creates all 13 figures from the paper, including the comprehensive main results figure comparing CSDI and Diffusion across Highway, Arterial, and Congested driving regimes.
 
-### 2. Download Pretrained Model Weights
+### 2. Model Training & Generation
 
-Model weights are hosted separately due to GitHub file size limits:
-
-- **Diffusion v1.5** (167MB): [Download Link - Contact authors]
-- **CSDI v1.3** (21MB): [Download Link - Contact authors]
-
-Place downloaded models in a `models/` directory:
-```
-reproduce/
-├── models/
-│   ├── diffusion_final.pt
-│   └── csdi_final.pt
-```
-
-> **Note**: Model weights are available upon request from the authors. Email: [your-email] with subject "Diffusion Trajectory Models - Weight Request"
-
-### 3. Generate Synthetic Trajectories
-
-**Using Diffusion v1.5:**
-```bash
-python3 scripts/diffusion_trajectory.py --model_path models/diffusion_final.pt --output synthetic_diff.csv
-```
-
-**Using CSDI v1.3:**
-```bash
-python3 scripts/csdi_trajectory.py --model_path models/csdi_final.pt --output synthetic_csdi.csv
-```
-
-**Using Markov Baseline:**
-```bash
-python3 scripts/markov_bridge_generator.py --data_path artifacts/stats_df.csv --output synthetic_markov.csv
-```
-
-### 4. Evaluate Generated Trajectories
-
-```bash
-python3 scripts/evaluate_distribution.py --real artifacts/stats_df.csv --synthetic synthetic_diff.csv
-python3 scripts/evaluate_csdi.py --real artifacts/stats_df.csv --synthetic synthetic_csdi.csv
-```
+See subfolder READMEs for detailed instructions:
+- **Diffusion v1.5**: `diffusion/README.md`
+- **CSDI v1.3**: `csdi/README.md`
 
 ## Dataset
 
 **Source**: Chicago Metropolitan Agency for Planning (CMAP) 2007-2008 Regional Household Travel Survey
 
-**Processing**: 
-- Extracted 6,367 microtrips (individual vehicle trips)
-- Clustered into 4 driving regimes using K-Means (k=4)
-- Features: avg speed, max speed, std speed, idle time ratio, stops/km, accel noise
+**Processed Data** (in `artifacts/`):
+- 6,367 microtrips clustered into 4 driving regimes
+- Cluster 0 (n=2,224): Arterial/Suburban
+- Cluster 1 (n=1,020): Highway/Interstate  
+- Cluster 2 (n=636): Congested/City
+- Cluster 3 (n=2,487): Free-flow Arterial
 
-**Clusters**:
-1. **Cluster 0** (n=2,224): Arterial/Suburban - moderate speeds, periodic patterns
-2. **Cluster 1** (n=1,020): Highway/Interstate - high sustained speeds
-3. **Cluster 2** (n=636): Congested/City - low speeds, frequent stops
-4. **Cluster 3** (n=2,487): Free-flow Arterial - smooth moderate speeds
+## Model Weights
 
-## Figure Descriptions
+Pretrained model weights are available via Dropbox (too large for GitHub):
 
-### Figure 1: Data Distributions
-Histograms showing trip duration (34-12,841s), distance (0.26-393km), and average speed (5.18-31.57 m/s).
+- **Diffusion v1.5** (167MB): [Dropbox Link - TBD by authors]
+- **CSDI v1.3** (21MB): [Dropbox Link - TBD by authors]
 
-### Figures 2-3: Cluster Projections (Side-by-Side)
-- **(a) PCA**: First 2 components explain ~65% variance
-- **(b) t-SNE**: Nonlinear projection with perplexity=30
-
-### Figures 4-7: Representative Trajectories
-Two example speed profiles per cluster, annotated with actual CMAP trip IDs for traceability.
-
-### Main Results Figure (CSDI vs Diffusion)
-Side-by-side comparison of the two best-performing models:
-
-**Left Column - CSDI v1.3:**
-- (a) Speed/Acceleration distributions (WD Speed=0.30, WD Accel=0.026)
-- (c) Sample highway trajectory
-- (e) SAFD heatmap (WD=0.0008)
-
-**Right Column - Diffusion v1.5:**
-- (b) Speed/Acceleration distributions (WD Speed=0.56, WD Accel=0.080)  
-- (d) Sample highway trajectory
-- (f) SAFD heatmap (WD=0.0005)
-
-**Key Insight**: Visual proof that CSDI achieves 2× better distribution matching than standard U-Net diffusion (0.30 vs 0.56), and 6× better than Markov chains (0.30 vs 1.82).
-
-### Figures 8-9: Architecture Diagrams
-Mermaid diagrams embedded in the paper (not generated by scripts).
-
-### Figure 10: Training Progression
-(TBD - if included in paper)
-
-### Figure 11: Model Comparison Grid
-Sample trajectories from 6 models: Real, Diffusion v1.5, CSDI v1.3, Markov, DoppelGANger, SDV
-
-### Figure 12: Distribution Comparisons
-Overlaid histograms for speed and acceleration distributions across models.
-
-### Figure 13: t-SNE Real vs Synthetic
-Scatter plot showing CSDI and Diffusion samples cluster near real data (discriminative score ≈ 0.49).
-
-## Tables
-
-All tables are embedded in `paper.qmd`. Key results summary:
-
-**Table 3: Model Performance**
-
-| Model | WD Speed | WD Accel | Discriminative | Boundary Violations |
-|:------|:---------|:---------|:---------------|:--------------------|
-| CSDI v1.3 | **0.30** | **0.026** | **0.49** | **0%** |
-| Diffusion v1.5 | 0.56 | 0.080 | 0.38 | 0% |
-| Markov | 1.82 | 0.145 | 0.31 | 0% |
-| Chronos | 2.15 | 0.198 | 0.24 | 18.3% |
-| DoppelGANger | 3.42 | 0.312 | 0.08 | 12.1% |
-| SDV | 2.87 | 0.421 | 0.15 | 23.4% |
+Place downloaded weights in respective `diffusion/v1.5/model/` and `csdi/v1.3/model/` directories.
 
 ## Citation
-
-If you use this code or data, please cite:
 
 ```bibtex
 @article{sokolov2026diffusion,
@@ -169,16 +64,14 @@ If you use this code or data, please cite:
 
 ## License
 
-MIT License - See LICENSE file for details
+MIT License - See LICENSE file
 
 ## Contact
 
-- **Vadim Sokolov** - George Mason University - [vsokolov@gmu.edu]
-- **Farnaz Behnia** - Argonne National Laboratory  
+- **Vadim Sokolov** - George Mason University
+- **Farnaz Behnia** - Argonne National Laboratory
 - **Dominik Karbowski** - Argonne National Laboratory
-
-For model weight requests, please email the corresponding author.
 
 ## Acknowledgments
 
-This work was supported by the U.S. Department of Energy's Vehicle Technologies Office. Data from CMAP 2007-2008 Regional Household Travel Survey.
+Supported by U.S. Department of Energy's Vehicle Technologies Office.

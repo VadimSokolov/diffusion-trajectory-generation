@@ -1,0 +1,176 @@
+---
+title: "Physics-Informed Diffusion for Vehicle Trajectory Generation"
+format: html
+bibliography: ../../strip-ai.bib
+---
+
+# Physics-Informed Diffusion Model
+
+This section details the proposed Physics-Informed Diffusion model for generating realistic, physically consistent vehicle speed trajectories. Unlike purely data-driven approaches, our model integrates kinematic constraints directly into the learning process to ensure generated trajectories adhere to physical limits of acceleration and jerk.
+
+## 1. Neural Network Architecture
+
+We employ a **Conditional 1D U-Net** architecture, adapted for time-series data. The model operates on 2-channel inputs: Speed ($v$) and Acceleration ($a$).
+
+### Conditioning Mechanism
+To control the generation process, we condition the model on trip metadata:
+*   **Average Speed:** Global target speed for the trip.
+*   **Duration:** Total length of the trip.
+
+This conditioning is injected via **FiLM (Feature-wise Linear Modulation)** layers @germainMADEMaskedAutoencoder2015, which scale and shift the feature maps based on the condition embedding. Time steps are injected via additive Sinusoidal Embeddings @vaswaniAttentionAllYou2017.
+
+```{mermaid}
+graph TD
+    subgraph "Conditioning"
+        C[Conditions: AvgSpeed, Duration] --> CL[Linear Proj]
+        CL --> FiLM[FiLM: Scale & Shift]
+    end
+
+    subgraph "Time Embedding"
+        T[Timestep t] --> TE[Sinusoidal Emb]
+        TE --> Add[Additive Injection]
+    end
+
+    subgraph "U-Net 1D Backbone"
+        Input[Noisy Trajectory (Speed, Accel)] --> ConvIn[Conv1d In]
+        ConvIn --> D1[DownBlock 1]
+        D1 --> D2[DownBlock 2]
+        D2 --> Bot[Bottleneck]
+        Bot --> U1[UpBlock 1]
+        U1 --> U2[UpBlock 2]
+        U2 --> ConvOut[Conv1d Out]
+    end
+
+    FiLM -.-> D1
+    FiLM -.-> D2
+    FiLM -.-> Bot
+    FiLM -.-> U1
+    FiLM -.-> U2
+
+    Add -.-> D1
+    Add -.-> D2
+    Add -.-> Bot
+    Add -.-> U1
+    Add -.-> U2
+
+    ConvOut --> Output[Predicted Noise / x_0]
+```
+
+## 2. Loss Function
+
+A key contribution of this work is the **Physics-Informed Loss Function**. Standard Mean Squared Error (MSE) is insufficient for constraining higher-order derivatives like acceleration and jerk. We minimize a composite loss:
+
+$$ \mathcal{L}_{total} = \mathcal{L}_{MSE} + \lambda_{accel}\mathcal{L}_{var} + \lambda_{jerk}\mathcal{L}_{jerk} + \lambda_{asym}\mathcal{L}_{asym} $$
+
+Where:
+*   **$\mathcal{L}_{MSE}$:** Standard diffusion reconstruction loss @ho2020denoising.
+*   **$\mathcal{L}_{var}$ (Acceleration Variance):** Penalizes the variance of the acceleration profile if it exceeds the target standard deviation ($\sigma \approx 0.6 m/s^2$) derived from real data. This prevents "fat tails" in the acceleration distribution.
+    $$ \mathcal{L}_{var} = \text{ReLU}(\text{Var}(a_{pred}) - \sigma^2_{target}) $$
+*   **$\mathcal{L}_{jerk}$ (Smoothness):** Penalizes rapid changes in acceleration (jerk) to ensure passenger comfort.
+    $$ \mathcal{L}_{jerk} = || a_{t} - a_{t-1} ||^2 $$
+*   **$\mathcal{L}_{asym}$:** Penalizes physically impossible negative speeds (after normalization).
+
+**Final Weights (v1.5):** $\lambda_{accel}=0.05$, $\lambda_{jerk}=0.02$, $\lambda_{asym}=0.03$.
+
+## 3. Training Algorithm
+
+We train using the standard DDPM framework with **Classifier-Free Guidance (CFG)**. During training, we randomly drop the condition ($c$) with $p=0.1$ to learn both the conditional $p(x|c)$ and unconditional $p(x)$ distributions.
+
+### 3a. Training Pipeline
+
+```{mermaid}
+graph LR
+    subgraph "Forward Process (Diffusion)"
+        X0[Real Trajectory] --> Noise[Add Gaussian Noise]
+        Noise --> Xt[Noisy x_t]
+    end
+
+    subgraph "Training Loop"
+        Xt --> Model[U-Net Model]
+        Cond[Conditions] --> Model
+        Time[Timestep t] --> Model
+        Model --> Pred[Predicted x_0]
+        
+        Pred --> Loss[Physics Loss Calc]
+        Loss --> Update[Gradient Update]
+    end
+```
+
+## 4. Generation Process
+
+The generation process is highly controllable via several "knobs":
+
+1.  **Conditions ($c$):** We sample (AvgSpeed, Duration) pairs from real data.
+2.  **`speed_boost` ($\beta$):** To address data imbalance, we use **Weighted Condition Sampling**. We sample conditions with probability $P(c) \propto (\text{AvgSpeed})^{\beta}$. With $\beta=1.75$, we effectively oversample high-speed trips to fill the sparse "blue gap" (25-30 m/s) in the distribution.
+3.  **`cfg_scale` ($w$):** Controls adherence to conditions via Classifier-Free Guidance:
+    $$ \epsilon_{final} = \epsilon_{uncond} + w (\epsilon_{cond} - \epsilon_{uncond}) $$
+    We use $w=3.0$ for optimal results.
+
+## 5. Justification of Modeling Choices
+
+Our final architecture evolved through rigorous failure analysis:
+
+*   **Failure of Simple Post-Processing:** Early attempts (v1.0-v1.2) used standard MSE loss and attempted to fix acceleration noise via Gaussian smoothing and clipping during post-processing. This resulted in a trade-off: smoothing fixed acceleration but destroyed the speed distribution (WD Speed regressed > 0.6).
+*   **Need for Physics Loss:** We found that constraints must be learned *during training*. Introducing $\mathcal{L}_{var}$ (v1.3-v1.5) allowed the model to learn smooth trajectories intrinsically, reducing WD Accel from 0.12 to **0.08** without post-processing artifacts.
+*   **Weighted Sampling:** The "Blue Gap" (missing high-speed trips) was an intrinsic dataset bias. No amount of training fixed it. Importance sampling (`speed_boost=1.75`) was the only effective solution to balance the speed histogram.
+
+## 6. Simulation Results
+
+We evaluated the final model (v1.5) on 6,367 held-out trajectories.
+
+### Metrics
+| Metric | Real Data | Synthetic (v1.5) | Target |
+| :--- | :--- | :--- | :--- |
+| **WD Accel** (Wasserstein) | - | **0.0800** | < 0.08 |
+| **WD Speed** (Wasserstein) | - | **0.5622** | < 0.60 |
+| **Smoothness (LDLJ)** | -11.08 | **-10.99** | Match Real |
+| **Boundary Violations** | 0% | **0.00%** | 0% |
+
+### Histograms
+The synthetic distributions (Orange) closely match the Real distributions (Blue). Notably, the acceleration distribution is tightly centered around 0, matching the physical reality of highway driving.
+
+*(Placeholder for Histogram Plot)*
+
+## 7. Future Improvements
+*   **Transformer Backbone:** Replacing U-Net with a Transformer @vaswaniAttentionAllYou2017 could better capture long-range dependencies (e.g., traffic jam waves).
+*   **Latent Diffusion:** moving to a latent space could speed up generation.
+
+### 9. Conditioned Generation & Extensibility
+The model is designed to be easily extensible for generating trajectories conditioned on vehicle type (Car/Bus/Truck), road geometry, or traffic density. This involves modifying two specific components in `diffusion_trajectory.py`:
+
+#### 1. Input Conditioning Vector (`TrajectoryDataset`)
+Currently, the condition vector $c$ has dimension 2 (`cond=avg_speed, duration`). To add new conditions, we simply extend this vector.
+
+*   **Traffic Density:** Add a scalar flow rate (e.g., veh/hr, normalized to [0,1]).
+    ```python
+    # diffusion_trajectory.py:103
+    cond = np.array([avg_speed, duration, density_norm], dtype=np.float32)
+    ```
+*   **Road Type:** Add a one-hot encoded vector or learnable embedding for road categories (Highway/Urban/Rural).
+
+#### 2. Network Hyperparameters (`Unet1D`)
+The network architecture automatically adapts to the condition dimension via the `cond_dim` parameter. The `cond_mlp` (lines 222-226) projects this raw input into the feature space used by the FiLM layers.
+
+*   **Adjusting the Knob:**
+    ```python
+    # diffusion_trajectory.py:213
+    class Unet1D(nn.Module):
+        def __init__(self, ..., cond_dim=3): # Increase cond_dim from 2 to 3
+            ...
+            self.cond_mlp = nn.Sequential(
+                nn.Linear(cond_dim, dim * 4), # Automatically scales to internal dims
+                ...
+            )
+    ```
+
+#### 3. Handling Categorical Inputs (Vehicle Type)
+For categorical inputs like Vehicle Type, we recommend adding an `nn.Embedding` layer and concatenating its output with the continuous scalar conditions before passing them to `cond_mlp`.
+
+```python
+self.veh_embedding = nn.Embedding(num_classes=3, embedding_dim=16)
+# forward pass
+veh_emb = self.veh_embedding(veh_type_id)
+cond_combined = torch.cat([scalar_conds, veh_emb], dim=1)
+```
+
+By tuning these "knobs"—input features and embedding dimensions—the model can be specialized for diverse traffic scenarios without changing the core U-Net backbone or the Physics-Informed Loss formulation.

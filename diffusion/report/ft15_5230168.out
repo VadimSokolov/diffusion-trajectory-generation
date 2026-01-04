@@ -1,0 +1,3 @@
+Starting v1.5 Fine-Tuning...
+Base Model: data/diffusion_final_pid.pt
+Physics: Accel=0.05, Jerk=0.02

@@ -1,0 +1,134 @@
+================================================================================
+CSDI v1.3 - Physics-Informed Trajectory Generation
+================================================================================
+
+Release Date: January 2026
+Status: Production-Ready
+
+================================================================================
+MODEL ARCHITECTURE
+================================================================================
+
+Component               Value           Description
+------------------------------------------------------------------------
+d_model                 256             Transformer hidden dimension
+n_heads                 8               Multi-head attention heads
+n_layers                6               Transformer encoder layers
+d_ff                    1024            Feed-forward hidden dimension
+dropout                 0.1             Regularization
+max_length              512             Maximum trajectory length (seconds)
+cond_dim                4               Condition vector size
+
+Conditioning Vector: [avg_speed/30, duration/1000, max_speed/40, vehicle_dynamics]
+
+Total Parameters: ~5.5M
+
+================================================================================
+DIFFUSION SETTINGS
+================================================================================
+
+Parameter               Value           Description
+------------------------------------------------------------------------
+diffusion_steps         200             Reverse diffusion iterations
+beta_start              0.0001          Noise schedule start
+beta_end                0.02            Noise schedule end
+schedule                cosine          Beta schedule type
+
+================================================================================
+TRAINING SETTINGS
+================================================================================
+
+Parameter               Value           Description
+------------------------------------------------------------------------
+epochs                  200             Training epochs
+batch_size              32              Samples per batch
+learning_rate           1e-4            Initial learning rate
+lr_schedule             cosine          Learning rate decay
+weight_decay            0               No L2 regularization
+
+Data Augmentation:
+- Original passenger car data: ~6,000 trajectories
+- Augmented heavy truck data: ~6,000 trajectories
+- Augmented bus data: ~6,000 trajectories
+- Total training data: ~18,000 trajectories
+
+================================================================================
+PHYSICS-BASED LOSS WEIGHTS (v1.3 New)
+================================================================================
+
+Loss                    Weight          Threshold       Purpose
+------------------------------------------------------------------------
+MSE (noise)             1.0             -               Primary denoising loss
+Temporal smoothness     0.1             -               Reduce high-freq patterns
+Acceleration penalty    0.03            4.0 m/s²        Limit max acceleration
+Deceleration penalty    0.03            5.0 m/s²        Limit max braking
+Jerk penalty            0.02            2.0 m/s³        Smooth accel changes
+Accel distribution      0.05            data-driven     Match real accel dist
+
+================================================================================
+GENERATION SETTINGS (Recommended)
+================================================================================
+
+Parameter               Value           Description
+------------------------------------------------------------------------
+smooth_kernel           7               Gaussian smoothing kernel size
+boundary_ramp           3               Boundary ramp length (seconds)
+speed_boost             1.0             Condition sampling weight (uniform)
+temperature             1.0             Sampling temperature (not used)
+
+================================================================================
+VEHICLE TYPE CONDITIONING
+================================================================================
+
+Vehicle Type            Dynamics Value  Typical Accel   Typical Decel
+------------------------------------------------------------------------
+heavy_truck             0.15            0.5-1.0 m/s²    2-3 m/s²
+truck                   0.25            1.0-1.5 m/s²    2-4 m/s²
+bus                     0.35            1.0-1.5 m/s²    3-4 m/s²
+suv                     0.45            2.0-3.0 m/s²    5-7 m/s²
+car / passenger_car     0.55            2.5-4.0 m/s²    7-9 m/s²
+sedan                   0.60            3.0-4.0 m/s²    8-10 m/s²
+sports_car              0.85            4.0-6.0 m/s²    10-12 m/s²
+
+================================================================================
+FINAL METRICS (v1.3 with speed_boost=1.0)
+================================================================================
+
+Metric                          Real            CSDI v1.3       Status
+------------------------------------------------------------------------
+Mean Speed (m/s)                16.96           17.84           ✅ Close
+Std Speed (m/s)                 5.92            5.92            ✅ Exact
+Max Speed (m/s)                 39.56           39.22           ✅ Close
+Mean Duration (s)               307.3           263.8           ⚠️ Shorter
+
+Speed Wasserstein               -               0.2957          ✅ Excellent
+Accel Wasserstein               -               0.0261          ✅ Excellent
+SAFD Wasserstein                -               0.0001          ✅ Perfect
+MMD                             -               0.0101          ✅ Low
+Discriminative Score            -               0.4913          ✅ Near 0.5
+Boundary Violation Rate         -               0.0000          ✅ Perfect
+TSTR MAE                        -               0.3880          ✅ Low
+
+================================================================================
+FILES IN THIS SNAPSHOT
+================================================================================
+
+v1.3/
+├── VERSION.txt              # This file
+├── README.md                # Comprehensive usage guide
+├── code/
+│   ├── csdi_trajectory.py   # Main training/generation script
+│   ├── evaluate_csdi.py     # Evaluation metrics script
+│   ├── submit.sbatch        # Full training + generation job
+│   ├── generate.sbatch      # Generation-only job
+│   ├── sync_to_hopper.sh    # Sync to HPC cluster
+│   └── fetch_results.sh     # Fetch results from HPC
+├── model/
+│   └── csdi_best.pt         # Trained model checkpoint (~22MB)
+└── results/
+    ├── csdi_evaluation_*.png    # Distribution comparison plots
+    ├── csdi_samples_*.png       # Sample trajectory plots
+    ├── csdi_metrics_*.json      # Full metrics JSON
+    └── csdi_report_*.csv        # Summary report
+
+================================================================================

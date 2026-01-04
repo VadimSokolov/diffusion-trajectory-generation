@@ -1,0 +1,19 @@
+Loading dataset from cache: data/dataset_cache.pt
+Dataset loaded: 6367 trajectories (Cached).
+Loading checkpoint for fine-tuning: data/diffusion_final_pid.pt
+Starting PID training (Physics-Informed Diffusion)...
+DEBUG: Epochs: 2000, Batch Size: 256, Dataset Len: 6367
+Epoch 100/2000 | Loss: 0.00468 (MSE base: 0.00381)
+Epoch 100/2000 | MSE: 0.00468
+Epoch 200/2000 | Loss: 0.00473 (MSE base: 0.00478)
+Epoch 200/2000 | MSE: 0.00473
+Epoch 300/2000 | Loss: 0.00475 (MSE base: 0.00489)
+Epoch 300/2000 | MSE: 0.00475
+Epoch 400/2000 | Loss: 0.00471 (MSE base: 0.00492)
+Epoch 400/2000 | MSE: 0.00471
+Epoch 500/2000 | Loss: 0.00438 (MSE base: 0.00488)
+Epoch 500/2000 | MSE: 0.00438
+Epoch 600/2000 | Loss: 0.00482 (MSE base: 0.00562)
+Epoch 600/2000 | MSE: 0.00482
+Epoch 700/2000 | Loss: 0.01085 (MSE base: 0.00435)
+Epoch 700/2000 | MSE: 0.01085

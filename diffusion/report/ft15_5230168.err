@@ -1,0 +1,10 @@
+usage: diffusion_trajectory.py [-h] [--train] [--pid] [--generate]
+                               [--data_path DATA_PATH]
+                               [--model_path MODEL_PATH] [--save_dir SAVE_DIR]
+                               [--epochs EPOCHS] [--batch_size BATCH_SIZE]
+                               [--lr LR] [--limit_files LIMIT_FILES]
+                               [--cfg_scale CFG_SCALE] [--n_samples N_SAMPLES]
+                               [--output_file OUTPUT_FILE]
+                               [--speed_boost SPEED_BOOST]
+                               [--plot_csv PLOT_CSV]
+diffusion_trajectory.py: error: unrecognized arguments: --accel_weight 0.05 --jerk_weight 0.02

@@ -1,0 +1,42 @@
+Running Evaluation...
+Model: data/diffusion_v1.5.pt
+CFG Scale: 3.0
+Suffix: _v1.5_boost175
+Speed Boost: 1.75
+Generating trajectories...
+Loading real data stats from data/real_data_stats.pkl for Condition Sampling...
+Using pre-saved metadata: 6367 trips.
+Sampling conditions from 6367 real trips.
+  Weighted sampling (power=1.75): original mean=16.9 → sampled mean=18.0 m/s
+Applying Global Distance Constraint...
+Saved data/synthetic_trajectories_v1.5_boost175.csv
+Generating 5x10 grid plot...
+Saved grid plot: report/validation_grid_jan04_0135pm.png
+Warning: Could not import shared evaluation_metrics. Some metrics will be unavailable.
+--- Starting Evaluation ---
+Calculating metrics...
+----------------------------------------
+Metric                    Value     
+----------------------------------------
+Wasserstein Speed:       0.5622
+Wasserstein Accel:       0.0800
+Wasserstein VSP:         1.5517
+Wasserstein SAFD (2D):   0.0005
+MMD:                     0.0000
+Discriminative Score:    0.0000
+TSTR MAE:                0.0000
+LDLJ (Smoothness) Real:  -11.0825
+LDLJ (Smoothness) Syn:   -13.2878
+Boundary Violation Rate: 0.00%
+KS Stat VSP:             0.0631 (p=0.0000)
+----------------------------------------
+
+Summary Comparison:
+Stat                 Real       Syn       
+Mean Speed (m/s)     16.92      18.17     
+Max Speed (m/s)      39.56      39.12     
+Mean Duration (s)    304.0      256.8     
+----------------------------------------
+Saved report/evaluation_plots_v1.5_boost175_jan04_0135pm.png
+Saved report/evaluation_report_v1.5_boost175_jan04_0135pm.md
+Done!

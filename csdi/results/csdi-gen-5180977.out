@@ -1,0 +1,101 @@
+==============================================
+CSDI Trajectory Generator - Generation Only
+==============================================
+Job ID: 5180977
+Node: gpu004
+Started: Thu Jan  1 20:00:47 EST 2026
+
+Python: /opt/sw/spack/apps/linux-rhel8-x86_64_v2/gcc-10.3.0/miniconda3-22.11.1-gy/bin/python
+CUDA available: True
+Data path: /home/vsokolov/projects/svtrip/data/Microtrips
+
+Starting generation...
+============================================================
+CSDI Trajectory Generator - Generation
+============================================================
+Loading real data for condition sampling from: /home/vsokolov/projects/svtrip/data/Microtrips
+Search pattern: /home/vsokolov/projects/svtrip/data/Microtrips/**/results_trip_*.csv
+Found 6367 files
+Loaded 1970 real conditions for sampling
+  Weighted sampling (power=1.0): original mean=17.1 → sampled mean=17.8 m/s
+Generating 1000 trajectories...
+  Diffusion steps: 200
+  Smoothing kernel: 7
+  Boundary ramp: 3 (conditional)
+  Condition stats:
+    Avg speed range: 8.6 - 31.6 m/s
+    Duration range: 50 - 512 s
+    Vehicle dynamics: 0.06 - 0.94 (0=heavy truck, 1=sports car)
+  Starting reverse diffusion (200 steps)...
+    Step 50/200 complete
+    Step 100/200 complete
+    Step 150/200 complete
+    Step 200/200 complete
+  Diffusion complete, applying post-processing...
+    Smoothing applied (kernel=7)
+    Boundary ramps applied (ramp=3)
+Diffusion sampling complete!
+Post-processing stats:
+  Speed - Mean: 19.24, Std: 7.59, Max: 39.22 m/s
+  Accel - Mean: 0.0000, Std: 0.5714 m/s²
+Saved samples plot: csdi_samples_20260101_200318.png
+
+Starting evaluation...
+Evaluating: /home/vsokolov/projects/svtrip/paper3/code/csdi/csdi_synthetic_20260101_200318.csv
+============================================================
+CSDI Trajectory Evaluation
+============================================================
+Loading 6367 real trajectory files...
+Loaded 6286 valid real trajectories
+Loading from CSV: /home/vsokolov/projects/svtrip/paper3/code/csdi/csdi_synthetic_20260101_200318.csv
+
+Real trajectories: 6286
+Synthetic trajectories: 1000
+
+============================================================
+Running Evaluation Metrics
+============================================================
+Running comprehensive evaluation...
+  [1/7] SAFD metrics...
+  [2/7] VSP metrics...
+  [3/7] Jerk metrics...
+  [4/7] Distribution metrics...
+  [5/7] Boundary metrics...
+  [6/7] Discriminative score...
+  [7/7] TSTR predictive score...
+Evaluation complete!
+
+============================================================
+EVALUATION RESULTS
+============================================================
+
+Key Metrics:
+----------------------------------------
+  SAFD Wasserstein: 0.0001
+  Speed Wasserstein: 0.2957
+  Accel Wasserstein: 0.0261
+  MMD: 0.0101
+  Discriminative Score: 0.4913
+  Boundary Violation Rate: 0.0000
+  TSTR MAE: 0.3880
+
+Saved metrics: /home/vsokolov/projects/svtrip/paper3/code/csdi/csdi_metrics_20260101_200324.json
+Saved report: /home/vsokolov/projects/svtrip/paper3/code/csdi/csdi_report_20260101_200324.csv
+Saved comparison plot: /home/vsokolov/projects/svtrip/paper3/code/csdi/csdi_evaluation_20260101_200324.png
+
+============================================================
+SUMMARY COMPARISON
+============================================================
+
+Metric                         Real            CSDI           
+------------------------------------------------------------
+Mean Speed (m/s)               16.96           17.84          
+Std Speed (m/s)                5.92            5.92           
+Mean Duration (s)              307.3           263.8          
+Max Speed (m/s)                39.56           39.22          
+
+✅ Evaluation complete!
+
+==============================================
+Completed: Thu Jan  1 20:03:40 EST 2026
+==============================================

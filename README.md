@@ -82,7 +82,7 @@ MIT License - See LICENSE file
 ## Contact
 
 - **Vadim Sokolov** - George Mason University
-- **Farnaz Behnia** - Argonne National Laboratory
+- **Farnaz Behnia** - Rocket Close
 - **Dominik Karbowski** - Argonne National Laboratory
 
 ## Acknowledgments

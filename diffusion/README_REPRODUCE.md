@@ -44,7 +44,14 @@ python3 evaluate_distribution.py \
 
 ## Model Download
 
-Pre-trained weights (167MB): [Dropbox Link - TBD]
+**Pre-trained Diffusion v1.5 weights** (167MB):
+
+```bash
+curl -L -o v1.5/model/diffusion_final.pt \
+  "https://www.dropbox.com/scl/fi/cug0sm4t7ck347obt8x5r/diffusion_final.pt?rlkey=b6bo8otagxmlsybyabis2g7sd&dl=1"
+```
+
+Or download manually: [diffusion_final.pt](https://www.dropbox.com/scl/fi/cug0sm4t7ck347obt8x5r/diffusion_final.pt?rlkey=b6bo8otagxmlsybyabis2g7sd&dl=1)
 
 Place in `v1.5/model/diffusion_final.pt`
 

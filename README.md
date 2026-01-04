@@ -34,6 +34,10 @@ See subfolder READMEs for detailed instructions:
 
 **Source**: Chicago Metropolitan Agency for Planning (CMAP) 2007-2008 Regional Household Travel Survey
 
+**Download Full Dataset**:
+- **Microtrips Data** (30MB): [Download from Dropbox](https://www.dropbox.com/scl/fi/56b1usdppj0dv8id3zqvw/Microtrips.zip?rlkey=kxs96s40mtepjtwr6fs46yk60&dl=1)
+- Extract to `data/Microtrips/` for full trip CSV files
+
 **Processed Data** (in `artifacts/`):
 - 6,367 microtrips clustered into 4 driving regimes
 - Cluster 0 (n=2,224): Arterial/Suburban

@@ -47,9 +47,16 @@ python3 evaluate_csdi.py \
 
 ## Model Download
 
-Pre-trained weights (21MB): [Dropbox Link - TBD]
+**Pre-trained CSDI v1.3 weights** (21MB):
 
-Place in `v1.3/model/csdi_final.pt`
+```bash
+curl -L -o v1.3/model/csdi_best.pt \
+  "https://www.dropbox.com/scl/fi/igeuh5j6i2dhb4dc90kek/csdi_best.pt?rlkey=878ys1xw4u3mvb4nxbqmyjmwe&dl=1"
+```
+
+Or download manually: [csdi_best.pt](https://www.dropbox.com/scl/fi/igeuh5j6i2dhb4dc90kek/csdi_best.pt?rlkey=878ys1xw4u3mvb4nxbqmyjmwe&dl=1)
+
+Place in `v1.3/model/csdi_best.pt`
 
 ## Key Results
 

@@ -28,7 +28,10 @@ models/
 *.pth
 *.ckpt
 
-# Data (if users generate large datasets)
+# Data (extracted from zip)
+data/
+
+# Generated datasets
 synthetic_*.csv
 *.npy
 *.pkl

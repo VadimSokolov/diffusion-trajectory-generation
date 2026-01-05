@@ -2,7 +2,6 @@
 **Addressing Mode Collapse, Enhancing Fidelity, and Ensuring Physical Validity**
 
 **Date:** 2025-12-31
-**Context:** This document is a merged consolidation of reports prepared by **GPT-5.2** and **Gemini 3**, addressing the user's specific challenges (limited success with GANs, mode collapse with PARSynthesizer).
 
 ---
 

@@ -1,6 +1,0 @@
-Loading dataset from cache: data/dataset_cache.pt
-Dataset loaded: 6367 trajectories (Cached).
-Starting PID training (Physics-Informed Diffusion)...
-DEBUG: Epochs: 5000, Batch Size: 256, Dataset Len: 6367
-Epoch 100/5000 | Loss: 0.00862 (MSE base: 0.00763)
-Epoch 100/5000 | MSE: 0.00862

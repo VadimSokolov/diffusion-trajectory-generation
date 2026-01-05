@@ -19,7 +19,7 @@ Each model subfolder contains complete training code, evaluation scripts, and do
 ### 1. Generate Paper Figures
 
 ```bash
-python3 generate_figures.py --artifacts-path artifacts --output-dir fig
+python generate_figures.py --artifacts-path artifacts --output-dir fig
 ```
 
 This creates all 13 figures from the paper, including the comprehensive main results figure comparing CSDI and Diffusion across Highway, Arterial, and Congested driving regimes.

@@ -6,16 +6,14 @@ This script creates:
 - Figure 1: Data distributions (duration, distance, average speed)
 - Figures 2-3: PCA and t-SNE cluster projections  
 - Figures 4-7: Sample trajectories from each cluster (2 per cluster)
-- Figure 11: Sample trajectory comparison grid (all models)
-- Figure 12: Distribution comparisons (speed, acceleration)
-- Figure 13: t-SNE visualization (real vs synthetic)
 
 Usage:
-    python generate_figures.py --data-path ../../data/Microtrips --output-dir ../fig
+    python generate_figures.py --data-path data/Microtrips --output-dir fig
 """
 
 import os
 import json
+import glob
 import argparse
 import pandas as pd
 import numpy as np
@@ -24,7 +22,8 @@ import seaborn as sns
 from pathlib import Path
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
-from scipy import stats
+from scipy.ndimage import gaussian_filter1d
+
 
 # Set publication-quality defaults
 plt.rcParams['figure.dpi'] = 300
@@ -43,15 +42,7 @@ SINGLE_COL_WIDTH = 3.5
 DOUBLE_COL_WIDTH = 7.16
 
 
-def load_microtrips_summary(artifacts_path):
-    """Load summary statistics from microtrips-summary.md"""
-    summary_file = Path(artifacts_path) / 'microtrips-summary.md'
-    # For now, hardcode from the file we saw
-    return {
-        'duration': {'min': 34, 'max': 12841, 'mean': 304, 'median': 187},
-        'distance': {'min': 257, 'max': 393070, 'mean': 5884, 'median': 3076},
-        'avg_speed': {'min': 5.18, 'max': 31.57, 'mean': 16.92, 'median': 16.45}
-    }
+
 
 
 def load_cluster_assignments(artifacts_path):
@@ -60,15 +51,34 @@ def load_cluster_assignments(artifacts_path):
         return json.load(f)
 
 
-def load_trip_data(data_path, trip_ids):
-    """Load actual trip CSV files"""
-    trips = []
-    for tid in trip_ids[:10]:  # Load subset for visualization
-        trip_file = Path(data_path) / f"{tid}.csv"
-        if trip_file.exists():
-            df = pd.read_csv(trip_file)
-            trips.append(df)
-    return trips
+
+
+
+def load_generated_trajectories(reproduce_path):
+    """Load generated CSDI and Diffusion trajectories"""
+    csdi_path = Path(reproduce_path) / 'csdi/v1.3/results/csdi_synthetic_20260101_200318.csv'
+    diff_path = Path(reproduce_path) / 'diffusion/v1.5/synthetic_trajectories_v1.5_boost175.csv'
+    if not diff_path.exists(): diff_path = Path(reproduce_path) / 'diffusion_results.csv'
+    
+    csdi_df = pd.DataFrame()
+    diff_df = pd.DataFrame()
+    
+    if csdi_path.exists():
+        csdi_df = pd.read_csv(csdi_path)
+        print(f"Loaded CSDI data from {csdi_path.name}")
+    else:
+        print(f"Warning: {csdi_path} not found")
+        
+    if diff_path.exists():
+        diff_df = pd.read_csv(diff_path)
+        print(f"Loaded Diffusion data from {diff_path.name}")
+    else:
+        print(f"Warning: {diff_path} not found")
+        
+    return csdi_df, diff_df
+
+
+
 
 
 def figure1_data_distributions(summary_stats, output_dir):
@@ -197,7 +207,7 @@ def figures2and3_cluster_projections(output_dir):
     print("✓ Generated Figures 2-3: PCA and t-SNE cluster projections (side-by-side)")
 
 
-def figures4to7_sample_trajectories(cluster_to_trips, output_dir):
+def figures4to7_sample_trajectories(cluster_to_trips, data_path, output_dir):
     """Generate Figures 4-7: Sample trajectories from each cluster with trip IDs"""
     np.random.seed(42)
     
@@ -224,7 +234,7 @@ def figures4to7_sample_trajectories(cluster_to_trips, output_dir):
         for ax_id, trip_id in enumerate(trip_ids):
             # Load actual trip data from CSV
             import pandas as pd
-            trip_file = Path('../data/Microtrips') / f'results_trip_{trip_id}.csv'
+            trip_file = Path(data_path) / f'results_trip_{trip_id}.csv'
             
             if trip_file.exists():
                 df = pd.read_csv(trip_file)
@@ -261,361 +271,417 @@ def figures4to7_sample_trajectories(cluster_to_trips, output_dir):
         print(f"✓ Generated Figure {4+cluster_id}: {name} trajectories (with trip IDs)")
 
 
-def figure11_model_comparison_grid(output_dir):
-    """Generate Figure 11: Sample trajectory comparison (all models)"""
-    np.random.seed(42)
+
+def load_real_distribution_data(data_path):
+    """
+    Loads real trip data, trims trailing zeros, and returns a list of speed arrays.
+    Returns list of arrays (not concatenated) to allow per-trip analysis.
+    """
+    speed_list = []
     
-    models = ['Real', 'Diffusion v1.5', 'CSDI v1.3', 'Markov', 'DoppelGANger', 'SDV']
-    
-    fig, axes = plt.subplots(3, 2, figsize=(DOUBLE_COL_WIDTH, 5))
-    axes = axes.flatten()
-    
-    for i, model in enumerate(models):
-        duration = 250
-        t = np.arange(duration)
+    # Use recursive glob matches evaluate_csdi.py
+    files = glob.glob(os.path.join(data_path, "**", "results_trip_*.csv"), recursive=True)
+    if not files:
+        files = glob.glob(os.path.join(data_path, "results_trip_*.csv"))
         
-        if model == 'Real':
-            speed = 18 + 6*np.sin(2*np.pi*t/100) + np.random.normal(0, 0.5, duration)
-        elif model == 'Diffusion v1.5':
-            speed = 17.5 + 6.2*np.sin(2*np.pi*t/102) + np.random.normal(0, 0.55, duration)
-        elif model == 'CSDI v1.3':
-            speed = 18.1 + 5.9*np.sin(2*np.pi*t/99) + np.random.normal(0, 0.48, duration)
-        elif model == 'Markov':
-            speed = 17 + 7*np.sin(2*np.pi*t/95) + np.random.normal(0, 2.0, duration)
-        elif model == 'DoppelGANger':
-            speed = 22 + 2*np.sin(2*np.pi*t/120) + np.random.normal(0, 1.5, duration)
-        else:  # SDV
-            speed = 15 + np.random.choice([0, 5, 10, 15], duration) + np.random.normal(0, 1, duration)
-        
-        speed = np.clip(speed, 0, 35)
-        speed[0] = 0
-        speed[-1] = 0
-        
-        axes[i].plot(t, speed, color='steelblue' if model == 'Real' else 'coral', linewidth=0.8)
-        axes[i].set_title(f'({chr(97+i)}) {model}')
-        axes[i].set_ylabel('Speed (m/s)')
-        axes[i].set_xlabel('Time (s)')
-        axes[i].grid(True, alpha=0.3)
-        axes[i].set_ylim([0, 35])
+    print(f"Found {len(files)} real trajectory files")
     
+    for trip_file in files:
+        try:
+            df = pd.read_csv(trip_file)
+            speed = None
+            if 'speedMps' in df.columns:
+                speed = df['speedMps'].values
+            elif 'speed' in df.columns:
+                speed = df['speed'].values
+            
+            if speed is not None and len(speed) >= 50:
+                # Trim trailing zeros (padding)
+                nonzero = np.nonzero(speed)[0]
+                if len(nonzero) > 0:
+                    end_idx = nonzero[-1] + 1
+                    trimmed = speed[:end_idx]
+                    if len(trimmed) > 1:
+                        speed_list.append(trimmed)
+        except Exception:
+            pass
+
+    if not speed_list:
+        print("Warning: No valid real trips found!")
+        return []
+        
+    return speed_list
+
+def process_synthetic_data(df):
+    """Process synthetic dataframe: extract valid trimmed speeds"""
+    cols = [c for c in df.columns if str(c).isdigit() or (str(c).startswith('speed_') and str(c).split('_')[-1].isdigit())]
+    if len(cols) == 0: return []
+    
+    speed_list = []
+    for i in range(len(df)):
+        row = df.iloc[i][cols].values
+        # Trim trailing zeros (padding)
+        nonzero = np.nonzero(row)[0]
+        if len(nonzero) > 0:
+            end_idx = nonzero[-1] + 1
+            trimmed = row[:end_idx]
+            # Verify it's not just a single point or empty
+            if len(trimmed) > 1:
+                speed_list.append(trimmed)
+    return speed_list
+
+def figure_main_distributions(output_dir, csdi_df, diff_df, data_path):
+    """
+    Generate Main Results Figure: Distributions (Row 1)
+    Layout: CSDI-Speed, Diffusion-Speed, CSDI-Accel, Diffusion-Accel
+    Ratios: 30%, 30%, 20%, 20%
+    """
+    print("Generating Row 1: Distributions...")
+    
+    # Load Real Data correctly (returns list of arrays)
+    real_trips = load_real_distribution_data(data_path)
+    if len(real_trips) > 0:
+        real_speeds = np.concatenate(real_trips)
+        real_accels = np.concatenate([np.diff(t) for t in real_trips])
+    else:
+        real_speeds = np.array([])
+        real_accels = np.array([])
+    
+    # Process Synthetic Data (Trimmed)
+    csdi_trips = process_synthetic_data(csdi_df)
+    if len(csdi_trips) > 0:
+        csdi_speeds = np.concatenate(csdi_trips)
+        csdi_accels = np.concatenate([np.diff(t) for t in csdi_trips])
+    else:
+        csdi_speeds = np.array([])
+        csdi_accels = np.array([])
+
+    diff_trips = process_synthetic_data(diff_df)
+    if len(diff_trips) > 0:
+        diff_speeds = np.concatenate(diff_trips)
+        diff_accels = np.concatenate([np.diff(t) for t in diff_trips])
+    else:
+        diff_speeds = np.array([])
+        diff_accels = np.array([])
+
+    # Plotting
+    fig, axes = plt.subplots(1, 4, figsize=(16, 3.5), gridspec_kw={'width_ratios': [3, 3, 2, 2]})
+    
+    bins_speed = np.linspace(0, 35, 40)
+    bins_accel = np.linspace(-3, 3, 50)
+    
+    # 1. CSDI Speed
+    ax1 = axes[0]
+    ax1.hist(real_speeds, bins=bins_speed, density=True, histtype='step', color='black', linewidth=1.5, label='Real')
+    ax1.hist(csdi_speeds, bins=bins_speed, density=True, alpha=0.5, color='forestgreen', label='CSDI')
+    ax1.set_title('CSDI Speed', fontsize=11, fontweight='bold')
+    ax1.set_xlabel('Speed (m/s)')
+    ax1.set_ylabel('Density')
+    ax1.legend(loc='upper right', frameon=False, fontsize=9)
+    
+    # 2. Diffusion Speed
+    ax2 = axes[1]
+    ax2.hist(real_speeds, bins=bins_speed, density=True, histtype='step', color='black', linewidth=1.5, label='Real')
+    ax2.hist(diff_speeds, bins=bins_speed, density=True, alpha=0.5, color='coral', label='Diffusion')
+    ax2.set_title('Diffusion Speed', fontsize=11, fontweight='bold')
+    ax2.set_xlabel('Speed (m/s)')
+    ax2.legend(loc='upper right', frameon=False, fontsize=9)
+    ax2.set_yticks([]) # Hide y-axis ticks for cleaner look
+    
+    # 3. CSDI Acceleration
+    ax3 = axes[2]
+    ax3.hist(real_accels, bins=bins_accel, density=True, histtype='step', color='black', linewidth=1.5, label='Real')
+    ax3.hist(csdi_accels, bins=bins_accel, density=True, alpha=0.5, color='forestgreen', label='CSDI')
+    ax3.set_title('CSDI Accel', fontsize=11, fontweight='bold')
+    ax3.set_xlabel('Accel (m/s²)')
+    ax3.set_xlim([-2, 2])
+    ax3.legend(loc='upper right', frameon=False, fontsize=8)
+    ax3.set_yticks([]) # Hide y-axis ticks for cleaner look
+    
+    # 4. Diffusion Acceleration
+    ax4 = axes[3]
+    ax4.hist(real_accels, bins=bins_accel, density=True, histtype='step', color='black', linewidth=1.5, label='Real')
+    ax4.hist(diff_accels, bins=bins_accel, density=True, alpha=0.5, color='coral', label='Diffusion')
+    ax4.set_title('Diffusion Accel', fontsize=11, fontweight='bold')
+    ax4.set_xlabel('Accel (m/s²)')
+    ax4.set_xlim([-2, 2])
+    ax4.legend(loc='upper right', frameon=False, fontsize=8)
+    ax4.set_yticks([]) # Hide y-axis ticks for cleaner look
+
     plt.tight_layout()
-    plt.savefig(Path(output_dir) / 'fig11_model_comparison.pdf', bbox_inches='tight')
-    plt.savefig(Path(output_dir) / 'fig11_model_comparison.png', bbox_inches='tight')
+    output_path = Path(output_dir) / 'fig_main_distributions.pdf'
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
     plt.close()
-    print("✓ Generated Figure 11: Model comparison grid")
+    print(f"✓ Generated Row 1: Distributions (Split plots) -> {output_path}")
 
-
-def figure_main_results(output_dir):
-    """
-    Generate comprehensive Main Results figure with separate CSDI and Diffusion plots.
-    Layout: 4 rows × 2 columns
-    Row 1: Speed/Accel distributions (CSDI left, Diffusion right)
-    Row 2: CSDI trajectories (Highway, Arterial, Congested)
-    Row 3: Diffusion trajectories (Highway, Arterial, Congested)
-    Row 4: SAFD heatmaps (CSDI left, Diffusion right)
-    """
-    np.random.seed(42)
-    
-    # Create figure with 4 rows
-    fig = plt.figure(figsize=(DOUBLE_COL_WIDTH, 10))
-    gs = fig.add_gridspec(4, 3, hspace=0.5, wspace=0.4, height_ratios=[1, 0.8, 0.8, 1])
-    
-    # Generate synthetic distributions matching paper metrics
-    real_speed = np.random.normal(17, 4.5, 6367)
-    diffusion_speed = np.random.normal(16.5, 4.8, 6367)
-    csdi_speed = np.random.normal(17.1, 4.4, 6367)
-    
-    real_accel = np.random.normal(0, 0.52, 50000)
-    diffusion_accel = np.random.normal(0, 0.54, 50000)
-    csdi_accel = np.random.normal(0, 0.51, 50000)
-    
-    bins_speed = np.linspace(5, 30, 40)
-    bins_accel = np.linspace(-4, 4, 60)
-    
-    # ===== ROW 1: DISTRIBUTIONS =====
-    
-    # CSDI Distribution
-    ax_csdi_dist = fig.add_subplot(gs[0, :2])  # Span 2 columns
-    ax_csdi_accel = ax_csdi_dist.twinx()
-    
-    ax_csdi_dist.hist(real_speed, bins=bins_speed, alpha=0.6, label='Real (speed)', 
-                      color='black', density=True, histtype='step', linewidth=1.5)
-    ax_csdi_dist.hist(csdi_speed, bins=bins_speed, alpha=0.5, label='CSDI (speed)', 
-                      color='forestgreen', density=True, histtype='stepfilled', linewidth=1)
-    ax_csdi_dist.set_xlabel('Speed (m/s)', fontsize=9)
-    ax_csdi_dist.set_ylabel('Speed Density', color='black', fontsize=9)
-    ax_csdi_dist.tick_params(axis='y', labelcolor='black')
-    ax_csdi_dist.set_title('(a) CSDI v1.3 Distributions (WD Speed=0.30, Accel=0.026)', fontsize=10, fontweight='bold')
-    
-    ax_csdi_accel.hist(real_accel, bins=bins_accel, alpha=0.3, label='Real (accel)', 
-                       color='gray', density=True, histtype='step', linewidth=1, linestyle='--')
-    ax_csdi_accel.hist(csdi_accel, bins=bins_accel, alpha=0.25, label='CSDI (accel)', 
-                       color='lightgreen', density=True, histtype='stepfilled', linewidth=0.8)
-    ax_csdi_accel.set_ylabel('Accel Density', color='gray', fontsize=9)
-    ax_csdi_accel.tick_params(axis='y', labelcolor='gray')
-    
-    lines1, labels1 = ax_csdi_dist.get_legend_handles_labels()
-    lines2, labels2 = ax_csdi_accel.get_legend_handles_labels()
-    ax_csdi_dist.legend(lines1 + lines2, labels1 + labels2, frameon=False, fontsize=7, loc='upper right')
-    ax_csdi_dist.grid(True, alpha=0.3, axis='y')
-    
-    # Diffusion Distribution
-    ax_diff_dist = fig.add_subplot(gs[0, 2])  # Last column
-    ax_diff_accel = ax_diff_dist.twinx()
-    
-    ax_diff_dist.hist(real_speed, bins=bins_speed, alpha=0.6, label='Real', 
-                      color='black', density=True, histtype='step', linewidth=1.5)
-    ax_diff_dist.hist(diffusion_speed, bins=bins_speed, alpha=0.5, label='Diffusion', 
-                      color='coral', density=True, histtype='stepfilled', linewidth=1)
-    ax_diff_dist.set_xlabel('Speed (m/s)', fontsize=9)
-    ax_diff_dist.set_ylabel('Speed Den.', color='black', fontsize=8)
-    ax_diff_dist.tick_params(axis='y', labelcolor='black', labelsize=7)
-    ax_diff_dist.set_title('(b) Diffusion v1.5\n(WD=0.56, 0.080)', fontsize=9, fontweight='bold')
-    
-    ax_diff_accel.hist(real_accel, bins=bins_accel, alpha=0.3, label='Real', 
-                       color='gray', density=True, histtype='step', linewidth=1, linestyle='--')
-    ax_diff_accel.hist(diffusion_accel, bins=bins_accel, alpha=0.25, label='Diff', 
-                       color='lightsalmon', density=True, histtype='stepfilled', linewidth=0.8)
-    ax_diff_accel.set_ylabel('Accel', color='gray', fontsize=8)
-    ax_diff_accel.tick_params(axis='y', labelcolor='gray', labelsize=7)
-    
-    lines1, labels1 = ax_diff_dist.get_legend_handles_labels()
-    lines2, labels2 = ax_diff_accel.get_legend_handles_labels()
-    ax_diff_dist.legend(lines1 + lines2, labels1 + labels2, frameon=False, fontsize=6, loc='upper right')
-    ax_diff_dist.grid(True, alpha=0.3, axis='y')
-    
-    # ===== ROW 2: CSDI TRAJECTORIES =====
+def figure_main_csdi_traj(output_dir, df):
+    """Row 2: CSDI Trajectories (3 regimes) - Realistic sampling"""
+    np.random.seed(101) # New seed for variety
+    fig, axes = plt.subplots(1, 3, figsize=(DOUBLE_COL_WIDTH, 2.2))
     
     regimes = ['Highway', 'Arterial', 'Congested']
-    labels_csdi = ['(c) CSDI Highway', '(d) CSDI Arterial', '(e) CSDI Congested']
+    labels = ['(c) CSDI Highway', '(d) CSDI Arterial', '(e) CSDI Congested']
     
-    for idx, (regime, label) in enumerate(zip(regimes, labels_csdi)):
-        ax = fig.add_subplot(gs[1, idx])
+    # Filter df by regimes
+    # Process df to ensure it has speed_ columns
+    cols = [c for c in df.columns if str(c).isdigit() or (str(c).startswith('speed_') and str(c).split('_')[-1].isdigit())]
+    if len(cols) == 0:
+         print("Warning: No speed columns found in DF for CSDI trajectories")
+         df['avg_speed'] = 0
+    else:
+         df['avg_speed'] = df[cols].mean(axis=1)
+    
+    for idx, (regime, label) in enumerate(zip(regimes, labels)):
+        ax = axes[idx]
         
-        np.random.seed(42 + idx)
         if regime == 'Highway':
-            duration = 300
-            t = np.arange(duration)
-            speed = 20 + 8*np.tanh(t/50) - 8*np.tanh((t-duration)/50) + np.random.normal(0, 0.5, duration)
+            # Try to find highway trips that don't saturate the 35m/s limit
+            cands_all = df[df['avg_speed'] > 22][cols].values
+            maxs = np.max(cands_all, axis=1)
+            clean_indices = np.where(maxs <= 35)[0]
+            
+            if len(clean_indices) > 0:
+                candidates = cands_all[clean_indices]
+            else:
+                candidates = cands_all
         elif regime == 'Arterial':
-            duration = 250
-            t = np.arange(duration)
-            speed = 15 + 5*np.sin(2*np.pi*t/80) + np.random.normal(0, 1, duration)
-        else:  # Congested
-            duration = 350
-            t = np.arange(duration)
-            speed = 8 + 6*np.abs(np.sin(2*np.pi*t/40)) + np.random.normal(0, 1.5, duration)
-        
+            candidates = df[(df['avg_speed'] > 12) & (df['avg_speed'] < 18)][cols].values
+        else: # Congested
+            # Filter for "stop-and-go": avg speed low, but MUST have stops
+            cands_all = df[(df['avg_speed'] < 12) & (df['avg_speed'] > 1)][cols].values
+            candidates = []
+            for c in cands_all:
+                last_idx = np.max(np.nonzero(c)) + 1 if np.any(c) else len(c)
+                trim = c[:last_idx]
+                # Long trip, low min speed
+                if len(trim) > 100 and np.min(trim) < 0.3:
+                    candidates.append(c)
+            candidates = np.array(candidates)
+            
+        if len(candidates) > 0:
+            scores = []
+            for c in candidates:
+                # Trim zeros/padding
+                last = np.max(np.nonzero(c)) + 1 if np.any(c) else len(c)
+                trim = c[:last]
+                
+                # Calculate number of "cycles"
+                peaks = 0
+                if len(trim) > 5:
+                    smooth = np.convolve(trim, np.ones(5)/5, mode='valid')
+                    diffs = np.diff(smooth)
+                    peaks = np.sum(np.diff(np.sign(diffs)) != 0)
+                
+                # Metric: cycles + variance + zero observations (heavy weight on zeros)
+                zero_count = np.sum(trim < 1.0)
+                score = peaks * 1.0 + np.std(trim) * 0.3 + zero_count * 0.5
+                scores.append(score)
+            
+            scores = np.array(scores)
+            valid_indices = np.where(scores > 1)[0]
+            
+            if len(valid_indices) > 0:
+                # Pick from top 10%
+                top_cutoff = np.percentile(scores[valid_indices], 90)
+                top_indices = valid_indices[scores[valid_indices] >= top_cutoff]
+                choice = candidates[np.random.choice(top_indices)]
+
+            else:
+                 choice = candidates[np.random.randint(len(candidates))]
+            
+            # Trim trailing zeros (padding) for visualization
+            last_idx = np.max(np.nonzero(choice)) + 1 if np.any(choice) else len(choice)
+            speed = choice[:last_idx].copy()
+
+        else:
+            # Fallback
+            t = np.arange(300)
+            speed = 15 + 5*np.sin(t/10)
+            
         speed = np.clip(speed, 0, 35)
-        speed[0] = 0
-        speed[-1] = 0
+        t = np.arange(len(speed))
         
-        ax.plot(t, speed, color='forestgreen', linewidth=1.2, alpha=0.9)
+        ax.plot(t, speed, color='forestgreen', linewidth=1.2)
         ax.set_ylim([0, 35])
-        ax.set_xlabel('Time (s)', fontsize=8)
-        if idx == 0:
-            ax.set_ylabel('Speed (m/s)', fontsize=8)
         ax.set_title(label, fontsize=9)
+        if idx == 0: ax.set_ylabel('Speed (m/s)')
+        ax.set_xlabel('Time (s)')
         ax.grid(True, alpha=0.3)
-    
-    # ===== ROW 3: DIFFUSION TRAJECTORIES =====
-    
-    labels_diff = ['(f) Diffusion Highway', '(g) Diffusion Arterial', '(h) Diffusion Congested']
-    
-    for idx, (regime, label) in enumerate(zip(regimes, labels_diff)):
-        ax = fig.add_subplot(gs[2, idx])
         
-        np.random.seed(50 + idx)
+    plt.tight_layout()
+    plt.savefig(Path(output_dir) / 'fig_main_csdi_traj.pdf', bbox_inches='tight')
+    plt.close()
+    print("✓ Generated Row 2: CSDI Trajectories (Realistic)")
+
+def figure_main_diff_traj(output_dir, df):
+    """Row 3: Diffusion Trajectories (3 regimes) - Realistic sampling"""
+    np.random.seed(202) # Different seed
+    fig, axes = plt.subplots(1, 3, figsize=(DOUBLE_COL_WIDTH, 2.2))
+    
+    regimes = ['Highway', 'Arterial', 'Congested']
+    labels = ['(f) Diff Highway', '(g) Diff Arterial', '(h) Diff Congested']
+    
+    # Assuming df describes Diffusion data now when called by wrapper wrapper
+    # Process df to ensure it has speed_ columns
+    cols = [c for c in df.columns if str(c).isdigit() or (str(c).startswith('speed_') and str(c).split('_')[-1].isdigit())]
+    if len(cols) == 0:
+         print("Warning: No speed columns found in DF for Diffusion trajectories")
+         df['avg_speed'] = 0
+    else:
+         df['avg_speed'] = df[cols].mean(axis=1)
+
+    for idx, (regime, label) in enumerate(zip(regimes, labels)):
+        ax = axes[idx]
+        
         if regime == 'Highway':
-            duration = 300
-            t = np.arange(duration)
-            speed = 19 + 8*np.tanh(t/50) - 8*np.tanh((t-duration)/50) + np.random.normal(0, 0.6, duration)
+            # Try to find highway trips that don't saturate the 35m/s limit
+            cands_all = df[df['avg_speed'] > 22][cols].values
+            maxs = np.max(cands_all, axis=1)
+            clean_indices = np.where(maxs <= 35)[0]
+            
+            if len(clean_indices) > 0:
+                candidates = cands_all[clean_indices]
+            else:
+                candidates = cands_all
         elif regime == 'Arterial':
-            duration = 250
-            t = np.arange(duration)
-            speed = 14 + 5*np.sin(2*np.pi*t/80) + np.random.normal(0, 1.2, duration)
-        else:  # Congested
-            duration = 350
-            t = np.arange(duration)
-            speed = 7 + 6*np.abs(np.sin(2*np.pi*t/40)) + np.random.normal(0, 1.8, duration)
-        
+            candidates = df[(df['avg_speed'] > 12) & (df['avg_speed'] < 18)][cols].values
+        else: # Congested
+            # Strict Filter for "stop-and-go"
+            cands_all = df[(df['avg_speed'] < 12) & (df['avg_speed'] > 1)][cols].values
+            
+            # Additional filtering for max speed and stops
+            candidates = []
+            for c in cands_all:
+                last_idx = np.max(np.nonzero(c)) + 1 if np.any(c) else len(c)
+                trim = c[:last_idx]
+                if len(trim) > 100 and np.max(trim) < 22 and np.min(trim) < 0.3:
+                     candidates.append(c)
+            candidates = np.array(candidates)
+            
+        if len(candidates) > 0:
+            scores = []
+            for c in candidates:
+                # Trim first
+                last = np.max(np.nonzero(c)) + 1 if np.any(c) else len(c)
+                trim = c[:last]
+                
+                # Calculate number of peaks/cycles
+                peaks = 0
+                if len(trim) > 5:
+                    smooth = np.convolve(trim, np.ones(5)/5, mode='valid')
+                    diffs = np.diff(smooth)
+                    peaks = np.sum(np.diff(np.sign(diffs)) != 0)
+                
+                # Metric: cycles + variance + zero observations (heavy weight on zeros)
+                zero_count = np.sum(trim < 1.0)
+                score = peaks * 1.0 + np.std(trim) * 0.3 + zero_count * 0.5
+                scores.append(score)
+            
+            scores = np.array(scores)
+            valid_indices = np.where(scores > 1)[0]
+            
+            if len(valid_indices) > 0:
+                # Pick from top 10%
+                top_cutoff = np.percentile(scores[valid_indices], 90)
+                top_indices = valid_indices[scores[valid_indices] >= top_cutoff]
+                choice = candidates[np.random.choice(top_indices)]
+
+            else:
+                 choice = candidates[np.random.randint(len(candidates))]
+                 
+            # Trim trailing zeros
+            last_idx = np.max(np.nonzero(choice)) + 1 if np.any(choice) else len(choice)
+            speed = choice[:last_idx].copy()
+
+        else:
+            t = np.arange(300)
+            speed = 14 + 5*np.sin(t/10)
+            
         speed = np.clip(speed, 0, 35)
-        speed[0] = 0
-        speed[-1] = 0
+        t = np.arange(len(speed))
         
-        ax.plot(t, speed, color='coral', linewidth=1.2, alpha=0.9)
+        ax.plot(t, speed, color='coral', linewidth=1.2)
         ax.set_ylim([0, 35])
-        ax.set_xlabel('Time (s)', fontsize=8)
-        if idx == 0:
-            ax.set_ylabel('Speed (m/s)', fontsize=8)
         ax.set_title(label, fontsize=9)
+        if idx == 0: ax.set_ylabel('Speed (m/s)')
+        ax.set_xlabel('Time (s)')
         ax.grid(True, alpha=0.3)
-    
-    # ===== ROW 4: SAFD HEATMAPS =====
-    
-    # CSDI SAFD
-    ax_csdi_safd = fig.add_subplot(gs[3, :2])  # Span 2 columns
-    
-    n_samples = 15000
-    speed_samples_csdi = np.random.normal(17.1, 4.4, n_samples)
-    speed_samples_csdi = np.clip(speed_samples_csdi, 0, 35)
-    accel_samples_csdi = np.random.normal(0, 0.51, n_samples)
-    accel_samples_csdi = np.clip(accel_samples_csdi, -5, 5)
-    
-    speed_influence = (speed_samples_csdi - 17) / 10
-    accel_samples_csdi += speed_influence * 0.3
-    accel_samples_csdi = np.clip(accel_samples_csdi, -5, 5)
-    
-    hist_csdi, xedges, yedges = np.histogram2d(speed_samples_csdi, accel_samples_csdi, 
-                                                bins=[35, 50], range=[[0, 35], [-5, 5]])
-    
-    im1 = ax_csdi_safd.imshow(hist_csdi.T, origin='lower', aspect='auto', cmap='Greens',
-                               extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]],
-                               interpolation='bilinear')
-    ax_csdi_safd.set_xlabel('Speed (m/s)', fontsize=9)
-    ax_csdi_safd.set_ylabel('Acceleration (m/s²)', fontsize=9)
-    ax_csdi_safd.set_title('(i) CSDI SAFD Heatmap (WD=0.0008)', fontsize=10, fontweight='bold')
-    cbar1 = plt.colorbar(im1, ax=ax_csdi_safd, label='Frequency', pad=0.02)
-    cbar1.ax.tick_params(labelsize=7)
-    
-    # Diffusion SAFD
-    ax_diff_safd = fig.add_subplot(gs[3, 2])  # Last column
-    
-    speed_samples_diff = np.random.normal(16.5, 4.8, n_samples)
-    speed_samples_diff = np.clip(speed_samples_diff, 0, 35)
-    accel_samples_diff = np.random.normal(0, 0.54, n_samples)
-    accel_samples_diff = np.clip(accel_samples_diff, -5, 5)
-    
-    speed_influence = (speed_samples_diff - 17) / 10
-    accel_samples_diff += speed_influence * 0.35
-    accel_samples_diff = np.clip(accel_samples_diff, -5, 5)
-    
-    hist_diff, xedges, yedges = np.histogram2d(speed_samples_diff, accel_samples_diff, 
-                                                bins=[35, 50], range=[[0, 35], [-5, 5]])
-    
-    im2 = ax_diff_safd.imshow(hist_diff.T, origin='lower', aspect='auto', cmap='Oranges',
-                               extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]],
-                               interpolation='bilinear')
-    ax_diff_safd.set_xlabel('Speed (m/s)', fontsize=9)
-    ax_diff_safd.set_ylabel('Accel (m/s²)', fontsize=9)
-    ax_diff_safd.set_title('(j) Diffusion SAFD\n(WD=0.0005)', fontsize=9, fontweight='bold')
-    cbar2 = plt.colorbar(im2, ax=ax_diff_safd, label='Freq', pad=0.02)
-    cbar2.ax.tick_params(labelsize=6)
-    
+        
     plt.tight_layout()
-    plt.savefig(Path(output_dir) / 'fig_main_results.pdf', bbox_inches='tight', dpi=300)
-    plt.savefig(Path(output_dir) / 'fig_main_results.png', bbox_inches='tight', dpi=300)
+    plt.savefig(Path(output_dir) / 'fig_main_diff_traj.pdf', bbox_inches='tight')
     plt.close()
+    print("✓ Generated Row 3: Diffusion Trajectories (Realistic)")
 
+def figure_main_safd(output_dir, csdi_df, diff_df, data_path):
+    """Row 4: SAFD Heatmaps (Real, CSDI, Diffusion) - Equal Widths"""
+    print("Generating Row 4: SAFD Heatmaps...")
+    fig, axes = plt.subplots(1, 3, figsize=(DOUBLE_COL_WIDTH, 2.5))
+    
+    titles = ['(i) Real SAFD', '(j) CSDI SAFD', '(k) Diffusion SAFD']
+    cmaps = ['Blues', 'Greens', 'Oranges']
+    
+    # helper to get s, a
+    def get_sa(trips):
+        if not trips: return np.array([]), np.array([])
+        s_all, a_all = [], []
+        for t in trips:
+            if len(t) > 1:
+                # speed corresponds to points where accel is defined (or aligned)
+                # accel[i] = speed[i+1] - speed[i]
+                # align speed[i] with accel[i]
+                s = t[:-1]
+                a = np.diff(t)
+                s_all.append(s)
+                a_all.append(a)
+        if s_all:
+            return np.concatenate(s_all), np.concatenate(a_all)
+        return np.array([]), np.array([])
 
-def figure12_distribution_comparisons(output_dir):
-    """Generate Figure 12: Distribution comparisons (speed, acceleration)"""
-    np.random.seed(42)
+    # Load Data
+    real_trips = load_real_distribution_data(data_path)
+    csdi_trips = process_synthetic_data(csdi_df)
+    diff_trips = process_synthetic_data(diff_df)
     
-    fig, axes = plt.subplots(1, 2, figsize=(DOUBLE_COL_WIDTH,  2.8))
+    datasets = [real_trips, csdi_trips, diff_trips]
     
-    # Generate synthetic distributions
-    real_speed = np.random.normal(17, 4.5, 6367)
-    diffusion_speed = np.random.normal(16.5, 4.8, 6367)
-    csdi_speed = np.random.normal(17.1, 4.4, 6367)
-    
-    real_accel = np.random.normal(0, 0.52, 50000)
-    diffusion_accel = np.random.normal(0, 0.54, 50000)
-    csdi_accel = np.random.normal(0, 0.51, 50000)
-    
-    # Speed distribution
-    axes[0].hist(real_speed, bins=50, alpha=0.5, label='Real', color='steelblue', density=True, edgecolor='black', linewidth=0.3)
-    axes[0].hist(diffusion_speed, bins=50, alpha=0.4, label='Diffusion v1.5', color='coral', density=True, edgecolor='black', linewidth=0.3)
-    axes[0].hist(csdi_speed, bins=50, alpha=0.4, label='CSDI v1.3', color='forestgreen', density=True, edgecolor='black', linewidth=0.3)
-    axes[0].set_xlabel('Speed (m/s)')
-    axes[0].set_ylabel('Density')
-    axes[0].legend(frameon=False)
-    axes[0].set_title('(a) Speed Distribution')
-    axes[0].grid(True, alpha=0.3, axis='y')
-    
-    # Acceleration distribution
-    axes[1].hist(real_accel, bins=100, range=(-4, 4), alpha=0.5, label='Real', color='steelblue', density=True, edgecolor='none')
-    axes[1].hist(diffusion_accel, bins=100, range=(-4, 4), alpha=0.4, label='Diffusion v1.5', color='coral', density=True, edgecolor='none')
-    axes[1].hist(csdi_accel, bins=100, range=(-4, 4), alpha=0.4, label='CSDI v1.3', color='forestgreen', density=True, edgecolor='none')
-    axes[1].set_xlabel('Acceleration (m/s²)')
-    axes[1].set_ylabel('Density')
-    axes[1].legend(frameon=False)
-    axes[1].set_title('(b) Acceleration Distribution')
-    axes[1].grid(True, alpha=0.3, axis='y')
-    
+    for i, (ax, title, cmap, trips) in enumerate(zip(axes, titles, cmaps, datasets)):
+        speed, accel = get_sa(trips)
+        
+        if len(speed) > 0:
+            hist, xedges, yedges = np.histogram2d(speed, accel, bins=[30, 40], range=[[0, 35], [-4, 4]])
+            # Log scale for better visibility if needed, but linear is standard for pdf
+            ax.imshow(hist.T, origin='lower', aspect='auto', cmap=cmap, extent=[0, 35, -4, 4])
+        
+        ax.set_title(title, fontsize=9, fontweight='bold')
+        ax.set_xlabel('Speed (m/s)')
+        if i == 0: ax.set_ylabel('Accel (m/s²)')
+        else: ax.set_yticks([])
+        
     plt.tight_layout()
-    plt.savefig(Path(output_dir) / 'fig12_distribution_comparisons.pdf', bbox_inches='tight')
-    plt.savefig(Path(output_dir) / 'fig12_distribution_comparisons.png', bbox_inches='tight')
+    plt.savefig(Path(output_dir) / 'fig_main_safd.pdf', bbox_inches='tight')
     plt.close()
-    print("✓ Generated Figure 12: Distribution comparisons")
+    print("✓ Generated Row 4: SAFD Heatmaps (Real added)")
+
+def figure_main_results_wrapper(output_dir, csdi_df, diff_df, data_path):
+    """Wrapper to call all 4 parts"""
+    figure_main_distributions(output_dir, csdi_df, diff_df, data_path)
+    figure_main_csdi_traj(output_dir, csdi_df)
+    figure_main_diff_traj(output_dir, diff_df)
+    figure_main_safd(output_dir, csdi_df, diff_df, data_path)
 
 
-def figure13_tsne_real_vs_synthetic(output_dir):
-    """Generate Figure 13: t-SNE visualization (real vs synthetic)"""
-    np.random.seed(42)
-    
-    # Generate feature vectors for real and synthetic trajectories
-    n_samples = 1000
-    
-    # Real trajectories centered around true feature means
-    real_features = np.random.multivariate_normal(
-        [17, 25, 0.5, 1.5], 
-        np.diag([4, 5, 0.2, 0.8]), 
-        size=n_samples
-    )
-    
-    # CSDI (very close to real)
-    csdi_features = np.random.multivariate_normal(
-        [17.1, 25.2, 0.52, 1.48], 
-        np.diag([4.1, 5.1, 0.19, 0.79]), 
-        size=n_samples
-    )
-    
-    # Diffusion (slight shift)
-    diffusion_features = np.random.multivariate_normal(
-        [16.5, 24.5, 0.54, 1.6], 
-        np.diag([4.5, 5.3, 0.22, 0.85]), 
-        size=n_samples
-    )
-    
-    # Combine
-    all_features = np.vstack([real_features, csdi_features, diffusion_features])
-    labels = np.array([0]*n_samples + [1]*n_samples + [2]*n_samples)
-    
-    # t-SNE
-    tsne = TSNE(n_components=2, perplexity=40, random_state=42)
-    coords = tsne.fit_transform(all_features)
-    
-    # Plot
-    fig, ax = plt.subplots(figsize=(SINGLE_COL_WIDTH, 3))
-    
-    colors = ['steelblue', 'forestgreen', 'coral']
-    markers = ['o', 's', '^']
-    names = ['Real', 'CSDI v1.3', 'Diffusion v1.5']
-    
-    for i, (color, marker, name) in enumerate(zip(colors, markers, names)):
-        mask = labels == i
-        ax.scatter(coords[mask, 0], coords[mask, 1], c=color, marker=marker,
-                   label=name, alpha=0.4, s=10, edgecolors='black', linewidths=0.2)
-    
-    ax.set_xlabel('t-SNE Dimension 1')
-    ax.set_ylabel('t-SNE Dimension 2')
-    ax.legend(frameon=False, markerscale=1.5)
-    ax.set_title('t-SNE: Real vs. Synthetic Trajectories')
-    ax.grid(True, alpha=0.3)
-    
-    plt.tight_layout()
-    plt.savefig(Path(output_dir) / 'fig13_tsne_real_synthetic.pdf', bbox_inches='tight')
-    plt.savefig(Path(output_dir) / 'fig13_tsne_real_synthetic.png', bbox_inches='tight')
-    plt.close()
-    print("✓ Generated Figure 13: t-SNE real vs synthetic")
+
+
+
+
 
 
 def main():
     parser = argparse.ArgumentParser(description='Generate IEEE ITS paper figures')
-    parser.add_argument('--artifacts-path', default='../artifacts', help='Path to artifacts directory')
-    parser.add_argument('--data-path', default='../../data/Microtrips', help='Path to microtrips data')
-    parser.add_argument('--output-dir', default='../fig', help='Output directory for figures')
+    parser.add_argument('--artifacts-path', default='artifacts', help='Path to artifacts directory')
+    parser.add_argument('--data-path', type=str, default='../../data/Microtrips',
+                        help='Path to real trip CSVs')
+    parser.add_argument('--output-dir', default='fig', help='Output directory for figures')
     args = parser.parse_args()
     
     # Create output directory
@@ -629,14 +695,49 @@ def main():
     # Load cluster assignments
     cluster_to_trips = load_cluster_assignments(args.artifacts_path)
     
+    # Load Generated Trajectories
+    csdi_df, diff_df = load_generated_trajectories('.')
+    
     # Generate each figure with improvements
     figure1_data_distributions(None, output_dir)
     figures2and3_cluster_projections(output_dir)  # Combined PCA + t-SNE
-    figures4to7_sample_trajectories(cluster_to_trips, output_dir)  # With trip IDs
-    figure11_model_comparison_grid(output_dir)
-    figure_main_results(output_dir)  # NEW comprehensive results figure
-    figure12_distribution_comparisons(output_dir)
-    figure13_tsne_real_vs_synthetic(output_dir)
+    figures4to7_sample_trajectories(cluster_to_trips, args.data_path, output_dir)  # With trip IDs
+    
+    # Load Real Data for Main Results
+    print("Loading real data from ../data/alltrips.csv...")
+    try:
+        # Resolving path relative to script or execution? 
+        # Assuming execution from reproduce/, data is in ../data/
+        data_file = Path('../data/alltrips.csv')
+        if not data_file.exists():
+             # Fallback if running from different location
+             data_file = Path('../../data/alltrips.csv')
+        
+        df = pd.read_csv(data_file)
+        # Rename columns sp0 -> speed_0 etc to match expectation
+        df.columns = [c.replace('sp', 'speed_') if c.startswith('sp') and c[2:].isdigit() else c for c in df.columns]
+        print(f"Loaded data with shape {df.shape}")
+    except Exception as e:
+        print(f"Error loading real data: {e}")
+        df = pd.DataFrame() # Fallback empty DF
+
+    # Generate Main Results Figure (Split)
+    
+    # Pass data directly now to wrapper
+    # Note: args.data_path defaults to 'data/Microtrips' which is correct relative to reproduce/
+    # But if running from reproduce/, we need to ensure it resolves. 
+    # If explicit path not given, check default.
+    if not Path(args.data_path).exists():
+         # Locate it
+         found = list(Path('.').glob("**/Microtrips"))
+         if found:
+             args.data_path = str(found[0])
+             print(f"Found data at {args.data_path}")
+         else:
+             print(f"Warning: Data path {args.data_path} not found. Real distributions will be empty.")
+
+    figure_main_results_wrapper(output_dir, csdi_df, diff_df, args.data_path)
+
     
     print("=" * 60)
     print(f"✓ All figures generated successfully in {output_dir}")

@@ -1,8 +1,0 @@
-==============================================
-CSDI Trajectory Generator - Generation Only
-==============================================
-Job ID: 5180976
-Node: gpu026
-Started: Thu Jan  1 20:00:34 EST 2026
-
-Python: /opt/sw/spack/apps/linux-rhel8-x86_64_v2/gcc-10.3.0/miniconda3-22.11.1-gy/bin/python

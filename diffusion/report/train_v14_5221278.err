@@ -1,5 +1,0 @@
-
-EnvironmentNameNotFound: Could not find conda environment: diffusion
-You can list all discoverable environments with `conda info --envs`.
-
-

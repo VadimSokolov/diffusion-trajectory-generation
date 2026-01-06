@@ -4,8 +4,7 @@ Generate all figures for IEEE ITS paper on diffusion models for vehicle speed tr
 
 This script creates:
 - Figure 1: Data distributions (duration, distance, average speed)
-- Figures 2-3: PCA and t-SNE cluster projections  
-- Figures 4-7: Sample trajectories from each cluster (2 per cluster)
+- Figures 4-7: Sample trajectories from each cluster (1 per cluster)
 
 Usage:
     python generate_figures.py --data-path data/Microtrips --output-dir fig
@@ -20,8 +19,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from pathlib import Path
-from sklearn.decomposition import PCA
-from sklearn.manifold import TSNE
 from scipy.ndimage import gaussian_filter1d
 
 
@@ -81,54 +78,54 @@ def load_generated_trajectories(reproduce_path):
 
 
 
-def figure1_data_distributions(summary_stats, output_dir):
+def figure1_data_distributions(real_df, output_dir):
     """Generate Figure 1: Data distributions (duration, distance, speed)"""
+    if real_df.empty:
+        print("Error: real_df is empty. Skipping Figure 1 (Data Distributions).")
+        return
+
+    print("Generating Figure 1: Data distributions...")
     fig, axes = plt.subplots(1, 3, figsize=(DOUBLE_COL_WIDTH, 2.5))
     
-    # For demo, create synthetic distributions matching the statistics
-    # In production, load actual data
-    np.random.seed(42)
-    
-    # Duration (log-normal to match wide range) - truncate display at 500s
-    duration = np.random.lognormal(mean=np.log(304), sigma=1.2, size=6367)
-    duration = np.clip(duration, 34, 12841)
-    
-    # Distance (log-normal) - truncate display at 7km
-    distance = np.random.lognormal(mean=np.log(5884), sigma=1.5, size=6367)
-    distance = np.clip(distance, 257, 393070) / 1000  # Convert to km
-    
-    # Speed (normal-ish)
-    speed = np.random.normal(loc=16.92, scale=4.5, size=6367) * 3.6  # Convert to km/h
-    speed = np.clip(speed, 5.18*3.6, 31.57*3.6)
-    
-    # Plot duration (truncate at 500s for better visualization)
+    # Use actual columns from artifacts/stats_df.csv
+    # duration_seconds, length_km, avg_speed_kmh
+    if 'duration_seconds' in real_df.columns and 'length_km' in real_df.columns:
+        duration = real_df['duration_seconds'].values
+        distance = real_df['length_km'].values
+        speed = real_df['avg_speed_kmh'].values
+    else:
+        print("Warning: 'duration_seconds'/'length_km' columns not found in stats_df. Skipping Figure 1.")
+        plt.close()
+        return
+
+    # Plot duration
     axes[0].hist(duration[duration <= 500], bins=50, color='steelblue', alpha=0.7, edgecolor='black', linewidth=0.5)
-    axes[0].axvline(304, color='red', linestyle='--', linewidth=1, label='Mean')
-    axes[0].axvline(187, color='orange', linestyle='--', linewidth=1, label='Median')
+    axes[0].axvline(np.mean(duration), color='red', linestyle='--', linewidth=1, label='Mean')
+    axes[0].axvline(np.median(duration), color='orange', linestyle='--', linewidth=1, label='Median')
     axes[0].set_xlabel('Duration (seconds)')
     axes[0].set_ylabel('Frequency')
     axes[0].set_xlim([0, 500])
     axes[0].legend(frameon=False)
-    axes[0].set_title('(a) Trip Duration')
+    axes[0].set_title('Trip Duration')
     
-    # Plot distance (truncate at 7km for better visualization)
+    # Plot distance
     axes[1].hist(distance[distance <= 7], bins=50, color='forestgreen', alpha=0.7, edgecolor='black', linewidth=0.5)
-    axes[1].axvline(5.88, color='red', linestyle='--', linewidth=1, label='Mean')
-    axes[1].axvline(3.08, color='orange', linestyle='--', linewidth=1, label='Median')
+    axes[1].axvline(np.mean(distance), color='red', linestyle='--', linewidth=1, label='Mean')
+    axes[1].axvline(np.median(distance), color='orange', linestyle='--', linewidth=1, label='Median')
     axes[1].set_xlabel('Distance (km)')
     axes[1].set_ylabel('Frequency')
     axes[1].set_xlim([0, 7])
     axes[1].legend(frameon=False)
-    axes[1].set_title('(b) Trip Distance')
+    axes[1].set_title('Trip Distance')
     
     # Plot speed
     axes[2].hist(speed, bins=50, color='coral', alpha=0.7, edgecolor='black', linewidth=0.5)
-    axes[2].axvline(60.92, color='red', linestyle='--', linewidth=1, label='Mean')
-    axes[2].axvline(59.21, color='orange', linestyle='--', linewidth=1, label='Median')
+    axes[2].axvline(np.mean(speed), color='red', linestyle='--', linewidth=1, label='Mean')
+    axes[2].axvline(np.median(speed), color='orange', linestyle='--', linewidth=1, label='Median')
     axes[2].set_xlabel('Average Speed (km/h)')
     axes[2].set_ylabel('Frequency')
     axes[2].legend(frameon=False)
-    axes[2].set_title('(c) Average Speed')
+    axes[2].set_title('Average Speed')
     
     plt.tight_layout()
     plt.savefig(Path(output_dir) / 'fig1_data_distributions.pdf', bbox_inches='tight')
@@ -137,74 +134,7 @@ def figure1_data_distributions(summary_stats, output_dir):
     print("✓ Generated Figure 1: Data distributions")
 
 
-def figures2and3_cluster_projections(output_dir):
-    """Generate Figures 2-3: PCA and t-SNE projections side-by-side"""
-    np.random.seed(42)
-    
-    # Cluster centers from paper: Arterial, Highway, Congested, Free-flow
-    cluster_centers = [
-        [15.6, 22.6, 0.59, 2.0],  # Arterial/Suburban
-        [22.2, 30.8, 0.12, 0.5],  # Highway
-        [13.9, 21.8, 1.29, 4.4],  # Congested
-        [16.7, 22.7, 0.28, 1.0],  # Free-flow
-    ]
-    cluster_sizes = [2224, 1020, 636, 2487]
-    
-    # Generate synthetic feature vectors
-    features = []
-    labels = []
-    for i, (center, size) in enumerate(zip(cluster_centers, cluster_sizes)):
-        cluster_data = np.random.multivariate_normal(
-            center, np.diag([1.5, 2.0, 0.1, 0.5]), size=min(size, 500)  # Subsample for t-SNE
-        )
-        features.append(cluster_data)
-        labels.extend([i] * min(size, 500))
-    
-    features = np.vstack(features)
-    labels = np.array(labels)
-    
-    # Create side-by-side figure
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(DOUBLE_COL_WIDTH, 2.8))
-    
-    colors = ['steelblue', 'forestgreen', 'coral', 'purple']
-    cluster_names = ['Arterial/Suburban', 'Highway/Interstate', 
-                     'Congested/City', 'Free-flow Arterial']
-    
-    # PCA
-    pca = PCA(n_components=2)
-    coords_pca = pca.fit_transform(features)
-    
-    for i in range(4):
-        mask = labels == i
-        ax1.scatter(coords_pca[mask, 0], coords_pca[mask, 1], c=colors[i], 
-                   label=cluster_names[i], alpha=0.5, s=5, edgecolors='none')
-    
-    ax1.set_xlabel(f'PC1 ({pca.explained_variance_ratio_[0]:.1%} var.)')
-    ax1.set_ylabel(f'PC2 ({pca.explained_variance_ratio_[1]:.1%} var.)')
-    ax1.legend(frameon=False, markerscale=2, fontsize=7)
-    ax1.set_title('(a) PCA Projection')
-    ax1.grid(True, alpha=0.3)
-    
-    # t-SNE
-    tsne = TSNE(n_components=2, perplexity=30, random_state=42)
-    coords_tsne = tsne.fit_transform(features)
-    
-    for i in range(4):
-        mask = labels == i
-        ax2.scatter(coords_tsne[mask, 0], coords_tsne[mask, 1], c=colors[i], 
-                   label=cluster_names[i], alpha=0.6, s=8, edgecolors='black', linewidths=0.3)
-    
-    ax2.set_xlabel('t-SNE Dimension 1')
-    ax2.set_ylabel('t-SNE Dimension 2')
-    ax2.legend(frameon=False, markerscale=1.5, fontsize=7)
-    ax2.set_title('(b) t-SNE Projection')
-    ax2.grid(True, alpha=0.3)
-    
-    plt.tight_layout()
-    plt.savefig(Path(output_dir) / 'fig2and3_cluster_projections.pdf', bbox_inches='tight')
-    plt.savefig(Path(output_dir) / 'fig2and3_cluster_projections.png', bbox_inches='tight')
-    plt.close()
-    print("✓ Generated Figures 2-3: PCA and t-SNE cluster projections (side-by-side)")
+
 
 
 def figures4to7_sample_trajectories(cluster_to_trips, data_path, output_dir):
@@ -217,58 +147,52 @@ def figures4to7_sample_trajectories(cluster_to_trips, data_path, output_dir):
         'Congested/City',
         'Free-flow Arterial'
     ]
-    # Curated trip IDs - cluster 2 uses trips with better stop-and-go patterns
+    # Curated trip IDs - cluster 2 uses a trip with better stop-and-go patterns
     curated_trips = {
-        '0': list(cluster_to_trips['0'])[:2],
-        '1': list(cluster_to_trips['1'])[:2],
-        '2': ['11624', '30711'],  # Better congested examples with stops
-        '3': list(cluster_to_trips['3'])[:2],
+        '0': [list(cluster_to_trips['0'])[0]],
+        '1': [list(cluster_to_trips['1'])[0]],
+        '2': ['11624'],  # Better congested example with stops
+        '3': [list(cluster_to_trips['3'])[0]],
     }
     
     for cluster_id, name in enumerate(cluster_names):
-        fig, axes = plt.subplots(2, 1, figsize=(SINGLE_COL_WIDTH, 3.5))
+        fig, ax = plt.subplots(figsize=(SINGLE_COL_WIDTH, 2.0))
         
-        # Get curated trip IDs
-        trip_ids = curated_trips[str(cluster_id)]
+        # Get curated trip ID
+        trip_id = curated_trips[str(cluster_id)][0]
         
-        for ax_id, trip_id in enumerate(trip_ids):
-            # Load actual trip data from CSV
-            import pandas as pd
-            trip_file = Path(data_path) / f'results_trip_{trip_id}.csv'
-            
-            if trip_file.exists():
-                df = pd.read_csv(trip_file)
-                speed = df['speedMps'].values
-                t = np.arange(len(speed))
-            else:
-                print(f"Warning: {trip_file} not found!")
-                t = np.arange(250)
-                speed = np.zeros(250)
-            
-            axes[ax_id].plot(t, speed, color='steelblue', linewidth=0.8)
-            axes[ax_id].set_ylabel('Speed (m/s)')
-            axes[ax_id].grid(True, alpha=0.3)
-            axes[ax_id].set_ylim([0, 35])
-            
-            # Add trip ID label (now accurate - real data!)
-            axes[ax_id].text(0.98, 0.95, f'Trip ID: {trip_id}', 
-                             transform=axes[ax_id].transAxes,
-                             ha='right', va='top', fontsize=7,
-                             bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
-            
-            if ax_id == 1:
-                axes[ax_id].set_xlabel('Time (s)')
-            else:
-                axes[ax_id].set_xticklabels([])
+        # Load actual trip data from CSV
+        import pandas as pd
+        trip_file = Path(data_path) / f'results_trip_{trip_id}.csv'
         
-        axes[0].set_title(f'({chr(97+cluster_id)}) {name} - Example 1')
-        axes[1].set_title(f'Example 2')
+        if trip_file.exists():
+            df = pd.read_csv(trip_file)
+            speed = df['speedMps'].values
+            t = np.arange(len(speed))
+        else:
+            print(f"Warning: {trip_file} not found!")
+            t = np.arange(250)
+            speed = np.zeros(250)
+        
+        ax.plot(t, speed, color='steelblue', linewidth=0.8)
+        ax.set_ylabel('Speed (m/s)')
+        ax.grid(True, alpha=0.3)
+        ax.set_ylim([0, 35])
+        ax.set_xlabel('Time (s)')
+        
+        # Add trip ID label (now accurate - real data!)
+        ax.text(0.98, 0.95, f'Trip ID: {trip_id}', 
+                         transform=ax.transAxes,
+                         ha='right', va='top', fontsize=7,
+                         bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+        
+        # ax.set_title(f'{name}')
         
         plt.tight_layout()
         plt.savefig(Path(output_dir) / f'fig{4+cluster_id}_cluster{cluster_id}_trajectories.pdf', bbox_inches='tight')
         plt.savefig(Path(output_dir) / f'fig{4+cluster_id}_cluster{cluster_id}_trajectories.png', bbox_inches='tight')
         plt.close()
-        print(f"✓ Generated Figure {4+cluster_id}: {name} trajectories (with trip IDs)")
+        print(f"✓ Generated Figure {4+cluster_id}: {name} trajectory (with trip ID)")
 
 
 
@@ -330,7 +254,7 @@ def process_synthetic_data(df):
                 speed_list.append(trimmed)
     return speed_list
 
-def figure_main_distributions(output_dir, csdi_df, diff_df, data_path):
+def figure_main_distributions(output_dir, csdi_df, diff_df, real_df, data_path):
     """
     Generate Main Results Figure: Distributions (Row 1)
     Layout: CSDI-Speed, Diffusion-Speed, CSDI-Accel, Diffusion-Accel
@@ -338,16 +262,27 @@ def figure_main_distributions(output_dir, csdi_df, diff_df, data_path):
     """
     print("Generating Row 1: Distributions...")
     
-    # Load Real Data correctly (returns list of arrays)
-    real_trips = load_real_distribution_data(data_path)
-    if len(real_trips) > 0:
-        real_speeds = np.concatenate(real_trips)
-        real_accels = np.concatenate([np.diff(t) for t in real_trips])
+    # 1. Load/Process Real Data
+    if not real_df.empty:
+        # Use sp0 (renamed to speed_0 in main) for full distribution
+        real_speeds = real_df['speed_0'].values
+        # Acceleration from sliding window: speed[t+1] - speed[t]
+        if 'speed_1' in real_df.columns:
+            real_accels = (real_df['speed_1'] - real_df['speed_0']).values
+        else:
+            real_accels = np.array([])
+        print(f"Using full Real dataset ({len(real_speeds)} points)")
     else:
-        real_speeds = np.array([])
-        real_accels = np.array([])
+        # Fallback to loading individual files
+        real_trips = load_real_distribution_data(data_path)
+        if len(real_trips) > 0:
+            real_speeds = np.concatenate(real_trips)
+            real_accels = np.concatenate([np.diff(t) for t in real_trips])
+        else:
+            real_speeds = np.array([])
+            real_accels = np.array([])
     
-    # Process Synthetic Data (Trimmed)
+    # 2. Process Synthetic Data (Trimmed)
     csdi_trips = process_synthetic_data(csdi_df)
     if len(csdi_trips) > 0:
         csdi_speeds = np.concatenate(csdi_trips)
@@ -372,7 +307,11 @@ def figure_main_distributions(output_dir, csdi_df, diff_df, data_path):
     
     # 1. CSDI Speed
     ax1 = axes[0]
-    ax1.hist(real_speeds, bins=bins_speed, density=True, histtype='step', color='black', linewidth=1.5, label='Real')
+    if len(real_speeds) > 0:
+        ax1.hist(real_speeds, bins=bins_speed, density=True, histtype='step', color='black', linewidth=1.5, label='Real')
+    else:
+        print("Warning: Skipping Real line in CSDI Speed plot.")
+
     ax1.hist(csdi_speeds, bins=bins_speed, density=True, alpha=0.5, color='forestgreen', label='CSDI')
     ax1.set_title('CSDI Speed', fontsize=11, fontweight='bold')
     ax1.set_xlabel('Speed (m/s)')
@@ -381,7 +320,9 @@ def figure_main_distributions(output_dir, csdi_df, diff_df, data_path):
     
     # 2. Diffusion Speed
     ax2 = axes[1]
-    ax2.hist(real_speeds, bins=bins_speed, density=True, histtype='step', color='black', linewidth=1.5, label='Real')
+    if len(real_speeds) > 0:
+        ax2.hist(real_speeds, bins=bins_speed, density=True, histtype='step', color='black', linewidth=1.5, label='Real')
+    
     ax2.hist(diff_speeds, bins=bins_speed, density=True, alpha=0.5, color='coral', label='Diffusion')
     ax2.set_title('Diffusion Speed', fontsize=11, fontweight='bold')
     ax2.set_xlabel('Speed (m/s)')
@@ -390,7 +331,9 @@ def figure_main_distributions(output_dir, csdi_df, diff_df, data_path):
     
     # 3. CSDI Acceleration
     ax3 = axes[2]
-    ax3.hist(real_accels, bins=bins_accel, density=True, histtype='step', color='black', linewidth=1.5, label='Real')
+    if len(real_accels) > 0:
+        ax3.hist(real_accels, bins=bins_accel, density=True, histtype='step', color='black', linewidth=1.5, label='Real')
+    
     ax3.hist(csdi_accels, bins=bins_accel, density=True, alpha=0.5, color='forestgreen', label='CSDI')
     ax3.set_title('CSDI Accel', fontsize=11, fontweight='bold')
     ax3.set_xlabel('Accel (m/s²)')
@@ -400,7 +343,9 @@ def figure_main_distributions(output_dir, csdi_df, diff_df, data_path):
     
     # 4. Diffusion Acceleration
     ax4 = axes[3]
-    ax4.hist(real_accels, bins=bins_accel, density=True, histtype='step', color='black', linewidth=1.5, label='Real')
+    if len(real_accels) > 0:
+        ax4.hist(real_accels, bins=bins_accel, density=True, histtype='step', color='black', linewidth=1.5, label='Real')
+    
     ax4.hist(diff_accels, bins=bins_accel, density=True, alpha=0.5, color='coral', label='Diffusion')
     ax4.set_title('Diffusion Accel', fontsize=11, fontweight='bold')
     ax4.set_xlabel('Accel (m/s²)')
@@ -420,7 +365,7 @@ def figure_main_csdi_traj(output_dir, df):
     fig, axes = plt.subplots(1, 3, figsize=(DOUBLE_COL_WIDTH, 2.2))
     
     regimes = ['Highway', 'Arterial', 'Congested']
-    labels = ['(c) CSDI Highway', '(d) CSDI Arterial', '(e) CSDI Congested']
+    labels = ['CSDI Highway', 'CSDI Arterial', 'CSDI Congested']
     
     # Filter df by regimes
     # Process df to ensure it has speed_ columns
@@ -495,8 +440,9 @@ def figure_main_csdi_traj(output_dir, df):
 
         else:
             # Fallback
-            t = np.arange(300)
-            speed = 15 + 5*np.sin(t/10)
+            print(f"Warning: No {regime} candidates found for CSDI. Skipping subplot.")
+            ax.set_visible(False)
+            continue
             
         speed = np.clip(speed, 0, 35)
         t = np.arange(len(speed))
@@ -519,7 +465,7 @@ def figure_main_diff_traj(output_dir, df):
     fig, axes = plt.subplots(1, 3, figsize=(DOUBLE_COL_WIDTH, 2.2))
     
     regimes = ['Highway', 'Arterial', 'Congested']
-    labels = ['(f) Diff Highway', '(g) Diff Arterial', '(h) Diff Congested']
+    labels = ['Diff Highway', 'Diff Arterial', 'Diff Congested']
     
     # Assuming df describes Diffusion data now when called by wrapper wrapper
     # Process df to ensure it has speed_ columns
@@ -594,8 +540,9 @@ def figure_main_diff_traj(output_dir, df):
             speed = choice[:last_idx].copy()
 
         else:
-            t = np.arange(300)
-            speed = 14 + 5*np.sin(t/10)
+            print(f"Warning: No {regime} candidates found for Diffusion. Skipping subplot.")
+            ax.set_visible(False)
+            continue
             
         speed = np.clip(speed, 0, 35)
         t = np.arange(len(speed))
@@ -612,15 +559,25 @@ def figure_main_diff_traj(output_dir, df):
     plt.close()
     print("✓ Generated Row 3: Diffusion Trajectories (Realistic)")
 
-def figure_main_safd(output_dir, csdi_df, diff_df, data_path):
+def figure_main_safd(output_dir, csdi_df, diff_df, real_df, data_path):
     """Row 4: SAFD Heatmaps (Real, CSDI, Diffusion) - Equal Widths"""
     print("Generating Row 4: SAFD Heatmaps...")
     fig, axes = plt.subplots(1, 3, figsize=(DOUBLE_COL_WIDTH, 2.5))
     
-    titles = ['(i) Real SAFD', '(j) CSDI SAFD', '(k) Diffusion SAFD']
+    titles = ['Real SAFD', 'CSDI SAFD', 'Diffusion SAFD']
     cmaps = ['Blues', 'Greens', 'Oranges']
     
-    # helper to get s, a
+    # helper for real data from DF
+    def get_sa_from_df(df):
+        if df.empty: return np.array([]), np.array([])
+        s = df['speed_0'].values
+        if 'speed_1' in df.columns:
+            a = (df['speed_1'] - df['speed_0']).values
+        else:
+            a = np.zeros_like(s)
+        return s, a
+
+    # helper to get s, a from trips
     def get_sa(trips):
         if not trips: return np.array([]), np.array([])
         s_all, a_all = [], []
@@ -637,15 +594,17 @@ def figure_main_safd(output_dir, csdi_df, diff_df, data_path):
             return np.concatenate(s_all), np.concatenate(a_all)
         return np.array([]), np.array([])
 
-    # Load Data
-    real_trips = load_real_distribution_data(data_path)
+    # Process Synthetic Data (Trimmed)
     csdi_trips = process_synthetic_data(csdi_df)
     diff_trips = process_synthetic_data(diff_df)
     
-    datasets = [real_trips, csdi_trips, diff_trips]
-    
-    for i, (ax, title, cmap, trips) in enumerate(zip(axes, titles, cmaps, datasets)):
-        speed, accel = get_sa(trips)
+    for i, (ax, title, cmap) in enumerate(zip(axes, titles, cmaps)):
+        if i == 0: # Real
+            speed, accel = get_sa_from_df(real_df)
+        elif i == 1: # CSDI
+            speed, accel = get_sa(process_synthetic_data(csdi_df))
+        else: # Diffusion
+            speed, accel = get_sa(process_synthetic_data(diff_df))
         
         if len(speed) > 0:
             hist, xedges, yedges = np.histogram2d(speed, accel, bins=[30, 40], range=[[0, 35], [-4, 4]])
@@ -662,12 +621,12 @@ def figure_main_safd(output_dir, csdi_df, diff_df, data_path):
     plt.close()
     print("✓ Generated Row 4: SAFD Heatmaps (Real added)")
 
-def figure_main_results_wrapper(output_dir, csdi_df, diff_df, data_path):
+def figure_main_results_wrapper(output_dir, csdi_df, diff_df, real_df, data_path):
     """Wrapper to call all 4 parts"""
-    figure_main_distributions(output_dir, csdi_df, diff_df, data_path)
+    figure_main_distributions(output_dir, csdi_df, diff_df, real_df, data_path)
     figure_main_csdi_traj(output_dir, csdi_df)
     figure_main_diff_traj(output_dir, diff_df)
-    figure_main_safd(output_dir, csdi_df, diff_df, data_path)
+    figure_main_safd(output_dir, csdi_df, diff_df, real_df, data_path)
 
 
 
@@ -698,9 +657,16 @@ def main():
     # Load Generated Trajectories
     csdi_df, diff_df = load_generated_trajectories('.')
     
+    # 1. Load summary stats for Fig 1
+    stats_file = Path(args.artifacts_path) / 'stats_df.csv'
+    if stats_file.exists():
+        stats_df = pd.read_csv(stats_file)
+    else:
+        print(f"Warning: {stats_file} not found. Figure 1 will be empty.")
+        stats_df = pd.DataFrame()
+
     # Generate each figure with improvements
-    figure1_data_distributions(None, output_dir)
-    figures2and3_cluster_projections(output_dir)  # Combined PCA + t-SNE
+    figure1_data_distributions(stats_df, output_dir)
     figures4to7_sample_trajectories(cluster_to_trips, args.data_path, output_dir)  # With trip IDs
     
     # Load Real Data for Main Results
@@ -736,7 +702,7 @@ def main():
          else:
              print(f"Warning: Data path {args.data_path} not found. Real distributions will be empty.")
 
-    figure_main_results_wrapper(output_dir, csdi_df, diff_df, args.data_path)
+    figure_main_results_wrapper(output_dir, csdi_df, diff_df, df, args.data_path)
 
     
     print("=" * 60)
